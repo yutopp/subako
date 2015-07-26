@@ -1,5 +1,7 @@
 pkg/
 src/github.com/
-src/gopkg.in
+src/gopkg.in/
+
+public/bower_components/
 
 app

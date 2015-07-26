@@ -1,0 +1,31 @@
+{
+  "name": "subako",
+  "version": "0.0.1",
+  "authors": [
+    "yutopp <yutopp@gmail.com>"
+  ],
+  "main": "public/js/main.js",
+  "keywords": [],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "public",
+    "test",
+    "tests",
+    "src",
+    "ext",
+    "js",
+    "sass",
+    "typing",
+    "*.sh",
+    "*.json",
+    "*.d.ts",
+    "index.html"
+  ],
+  "dependencies": {
+    "jquery": "~2.1.4",
+    "bootstrap": "~3.3.5"
+  },
+  "devDependencies": {}
+}
