@@ -16,7 +16,7 @@ func MakeAptRepositoryContext(
 	aptRepositoryBaseDir	string,
 ) (*AptRepositoryContext, error) {
 	// existence
-	if !exists(aptRepositoryBaseDir) {
+	if !Exists(aptRepositoryBaseDir) {
 		if err := os.Mkdir(aptRepositoryBaseDir, 0755); err != nil {
 			return nil, err
 		}

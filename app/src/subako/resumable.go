@@ -14,7 +14,7 @@ type Resumable interface {
 func LoadStructure(path string, r Resumable) error {
 	r.SetFilePath(path)
 
-	if !exists(path) {
+	if !Exists(path) {
 		return nil
 	}
 

@@ -72,17 +72,25 @@ func main() {
 	log.Printf("Notification URL: %s", uConfig.Notification.Url)
 	log.Printf("Cron Timing: %d:%d", uConfig.Cron.Hour, uConfig.Cron.Minute)
 
+	// make storage dir
+	storageDir := path.Join(cwd, "_storage")
+	if !subako.Exists(storageDir) {
+		if err := os.Mkdir(storageDir, 0755); err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	// make config
 	config := &subako.SubakoConfig{
 		ProcConfigSetsBaseDir: path.Join(cwd, "../proc_configs_test"),
-		AvailablePackagesPath: path.Join(cwd, "../available_packages.json"),
-		AptRepositoryBaseDir: path.Join(cwd, "../apt_repository"),
-		VirtualUsrDir: path.Join(cwd, "../torigoya_usr"),
-		TmpBaseDir: path.Join(cwd, "../temp"),
-		PackagesDir: path.Join(cwd, "../packages"),
-		RunningTasksPath: path.Join(cwd, "../running_tasks.json"),
-		ProfilesHolderPath: path.Join(cwd, "../proc_profiles.json"),
-		DataBasePath: path.Join(cwd, "../db.sqlite"),
+		AvailablePackagesPath: path.Join(storageDir, "available_packages.json"),
+		AptRepositoryBaseDir: path.Join(storageDir, "apt_repository"),
+		VirtualUsrDir: path.Join(storageDir, "torigoya_usr"),
+		TmpBaseDir: path.Join(storageDir, "temp"),
+		PackagesDir: path.Join(storageDir, "packages"),
+		RunningTasksPath: path.Join(storageDir, "running_tasks.json"),
+		ProfilesHolderPath: path.Join(storageDir, "proc_profiles.json"),
+		DataBasePath: path.Join(storageDir, "db.sqlite"),
 		UpdatedNotificationURL: uConfig.Notification.Url,
 		CronData: subako.Crontab {
 			Hour: uConfig.Cron.Hour,

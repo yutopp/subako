@@ -44,7 +44,7 @@ type AvailablePackages struct {
 }
 
 func LoadAvailablePackages(path string) (*AvailablePackages, error) {
-	if !exists(path) {
+	if !Exists(path) {
 		return &AvailablePackages{
 			LastUpdated: 0,
 			Packages: make(map[string]AvailableVerPackages),

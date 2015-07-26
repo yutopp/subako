@@ -353,9 +353,9 @@ func makeProcConfigSet(baseDir targetPath) *ProcConfigSet {
 	// read profile templates
 	ptPath := filepath.Join(ptBasePath, "template.yml")
 	var profileTemplate *ProfileTemplate = nil
-	if exists(ptPath) {
+	if Exists(ptPath) {
 		pt, err := readProfileTemplate(ptPath)
-		if err != nil { panic("a") }
+		if err != nil { panic("a") }		// TODO: fix
 		profileTemplate = pt
 	}
 

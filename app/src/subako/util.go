@@ -7,7 +7,7 @@ import (
 
 
 // exists returns whether the given file or directory exists or not
-func exists(path string) bool {
+func Exists(path string) bool {
     _, err := os.Stat(path)
     if err == nil { return true }
     if os.IsNotExist(err) { return false }
@@ -15,7 +15,7 @@ func exists(path string) bool {
 }
 
 func exactFilePath(path string) (string, error) {
-	if !exists(path) {
+	if !Exists(path) {
 		log.Println("create dir: ", path);
 		if err := os.Mkdir(path, 0755); err != nil {
 			return "", err

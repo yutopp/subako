@@ -4,5 +4,10 @@ src/gopkg.in/
 
 public/bower_components/
 
-app
-config.yml
+/app
+/config.yml
+
+/_storage/*
+!/_storage/apt_repository
+/_storage/apt_repository/*
+!/_storage/apt_repository/conf

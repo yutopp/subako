@@ -36,19 +36,19 @@ func MakeBuilderContext(
 		return nil, err
 	}
 
-	if !exists(virtualUsrDir) {
+	if !Exists(virtualUsrDir) {
 		if err := os.Mkdir(virtualUsrDir, 0755); err != nil {
 			return nil, err
 		}
 	}
 
-	if !exists(tmpBaseDir) {
+	if !Exists(tmpBaseDir) {
 		if err := os.Mkdir(tmpBaseDir, 0755); err != nil {
 			return nil, err
 		}
 	}
 
-	if !exists(packagesDir) {
+	if !Exists(packagesDir) {
 		if err := os.Mkdir(packagesDir, 0755); err != nil {
 			return nil, err
 		}
