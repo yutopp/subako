@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-xs-12">
+        {{task.LogName}}
+        {% if task.Status == 0 %}
+        {# running #}
+        <span class="label label-primary">Running</span>
+
+        {% elif task.Status == 1 %}
+        {# succeeded #}
+        <span class="label label-success">Succeeded</span>
+
+        {% elif task.Status == 2 %}
+        {# failed #}
+        <span class="label label-danger">Failed</span>
+
+        {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-xs-12">
+        <pre>{{ buffer }}</pre>
+    </div>
+</div>
+
+{% endblock %}

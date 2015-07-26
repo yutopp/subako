@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<h1>Webhooks</h1>
+
+<table class="table table-striped">
+    <tr>
+        <th>target</th>
+        <th>secret</th>
+        <th>proc name</th>
+        <th>version</th>
+        <th></th>
+        <th></th>
+    </tr>
+
+    {% for hook in webhooks %}
+    <tr>
+        <form action="/webhooks/update/{{ hook.ID }}" method="post" class="form-inline">
+            <th>
+                <input type="text" name="target" class="form-control" value="{{ hook.Target }}">
+            </th>
+            <th>
+                <input type="text" name="secret" class="form-control" value="{{ hook.Secret }}">
+            </th>
+            <th>
+                <input type="text" name="proc_name" class="form-control" value="{{ hook.ProcName }}">
+            </th>
+            <th>
+                <input type="text" name="version" class="form-control" value="{{ hook.Version }}">
+            </th>
+
+            <th>
+                <input type="submit" class="btn btn-primary" value="Update">
+            </th>
+        </form>
+
+        <form action="/webhooks/delete/{{ hook.ID }}" method="post">
+            <th>
+                <input type="submit" class="btn btn-danger" value="Delete">
+            </th>
+        </form>
+    </tr>
+    {% endfor %}
+
+    <tr>
+        <form action="/webhooks/append" method="post" class="form-inline">
+            <th>
+                <input type="text" name="target" class="form-control" placeholder="c++">
+            </th>
+            <th>
+                <input type="text" name="secret" class="form-control" placeholder="hoge">
+            </th>
+            <th>
+                <input type="text" name="proc_name" class="form-control" placeholder="test">
+            </th>
+            <th>
+                <input type="text" name="version" class="form-control" placeholder="HEAD">
+            </th>
+
+            <th>
+                <input type="submit" class="btn btn-info" value="Append">
+            </th>
+        </form>
+
+        <th></th>
+    </tr>
+</table>
+
+{% endblock %}

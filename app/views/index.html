@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-xs-12">
+        {% for name, config_set in config_sets %}
+        - {{ name }}<br>
+        {% for version, config in config_set.VersionedConfigs %}
+        <a href="/build/{{ name | urlencode}}/{{ version | urlencode}}">build {{ name }} {{ version }}</a><br>
+        <a href="/queue/{{ name | urlencode}}/{{ version | urlencode}}">queue {{ name }} {{ version }}</a><br>
+        {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-xs-12">
+        <ul>
+            {% for task in tasks %}
+
+            {% if task.Status == 0 %}
+            {# running #}
+            <li><a href="/live_status/{{task.Id}}">{{task.LogName}}</a> <span class="label label-primary">Running</span></li>
+
+            {% elif task.Status == 1 %}
+            {# succeeded #}
+            <li><a href="/live_status/{{task.Id}}">{{task.LogName}}</a> <span class="label label-success">Succeeded</span></li>
+
+            {% elif task.Status == 2 %}
+            {# failed #}
+            <li><a href="/live_status/{{task.Id}}">{{task.LogName}}</a> <span class="label label-danger">Failed</span></li>
+
+            {% endif %}
+
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-xs-12">
+        <ul>
+            {% for q in queued_tasks %}
+
+            <li>Wailing: {{ q.proc.name }} {{ q.proc.version }}</li>
+
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+{% endblock %}
