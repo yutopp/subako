@@ -12,12 +12,14 @@ import (
 
 	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/web"
+	"github.com/goji/httpauth"
 
 	"github.com/flosch/pongo2"
 	"github.com/ActiveState/tail"
 
 	"strconv"
 	"encoding/json"
+	"gopkg.in/yaml.v2"
 
 	"time"
 	"path"
@@ -31,6 +33,21 @@ import (
 
 var gSubakoCtx *subako.SubakoContext
 
+type userConfig struct {
+	Notification	struct {
+		Url			string
+		Secret		string
+	}
+	Cron			struct {
+		Hour		int
+		Minute		int
+	}
+	Auth			struct {
+		User		string
+		Password	string
+	}
+}
+
 func main() {
 	defer func() {
 		log.Println("Exit main")
@@ -41,6 +58,21 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// read user config
+	buffer, err := ioutil.ReadFile(path.Join(cwd, "config.yml"),)
+    if err != nil {
+		log.Fatal(err)
+    }
+	var uConfig userConfig
+	if err := yaml.Unmarshal(buffer, &uConfig); err != nil {
+		log.Fatal(err)
+	}
+
+	//
+	log.Printf("Notification URL: %s", uConfig.Notification.Url)
+	log.Printf("Cron Timing: %d:%d", uConfig.Cron.Hour, uConfig.Cron.Minute)
+
+	// make config
 	config := &subako.SubakoConfig{
 		ProcConfigSetsBaseDir: path.Join(cwd, "../proc_configs_test"),
 		AvailablePackagesPath: path.Join(cwd, "../available_packages.json"),
@@ -51,10 +83,10 @@ func main() {
 		RunningTasksPath: path.Join(cwd, "../running_tasks.json"),
 		ProfilesHolderPath: path.Join(cwd, "../proc_profiles.json"),
 		DataBasePath: path.Join(cwd, "../db.sqlite"),
-		UpdatedNotificationURL: "http://localhost:3000/",
+		UpdatedNotificationURL: uConfig.Notification.Url,
 		CronData: subako.Crontab {
-			Hour: 2,
-			Minute: 50,
+			Hour: uConfig.Cron.Hour,
+			Minute: uConfig.Cron.Minute,
 		},
 		LogDir: "/tmp",
 	}
@@ -72,6 +104,15 @@ func main() {
 	gSubakoCtx = subakoCtx
 
 	//
+	authOpts := httpauth.AuthOptions{
+        Realm: "TorigoyaFactory",
+        User: uConfig.Auth.User,
+        Password: uConfig.Auth.Password,
+    }
+	reqAuthMux := web.New()
+	reqAuthMux.Use(httpauth.BasicAuth(authOpts))
+
+	//
 	pongo2.DefaultSet.SetBaseDirectory("views")
 
 	goji.Get("/assets/*", http.StripPrefix("/assets/", http.FileServer(http.Dir("./public"))))
@@ -79,26 +120,27 @@ func main() {
 
 	goji.Get("/", index)
 
-	goji.Get("/live_status/:id", liveStatus)
+	reqAuthMux.Get("/live_status/:id", liveStatus)
 	goji.Get("/status/:id", status)
 
-	goji.Get("/build/:name/:version", build)
-	goji.Get("/queue/:name/:version", queue)
+	reqAuthMux.Get("/build/:name/:version", build)
+	reqAuthMux.Get("/queue/:name/:version", queue)
 
 	goji.Get("/packages", showPackages)
 
-	goji.Get("/webhooks", webhooks)
+	reqAuthMux.Get("/webhooks", webhooks)
 	goji.Post("/webhooks/:name", webhookEvent)
-	goji.Post("/webhooks/append", webhooksAppend)
-	goji.Post("/webhooks/update/:id", webhooksUpdate)
-	goji.Post("/webhooks/delete/:id", webhooksDelete)
+	reqAuthMux.Post("/webhooks/append", webhooksAppend)
+	reqAuthMux.Post("/webhooks/update/:id", webhooksUpdate)
+	reqAuthMux.Post("/webhooks/delete/:id", webhooksDelete)
 
-	goji.Get("/daily_tasks", dailyTasks)
-	goji.Post("/daily_tasks/append", dailyTasksAppend)
-	goji.Post("/daily_tasks/update/:id", dailyTasksUpdate)
-	goji.Post("/daily_tasks/delete/:id", dailyTasksDelete)
+	reqAuthMux.Get("/daily_tasks", dailyTasks)
+	reqAuthMux.Post("/daily_tasks/append", dailyTasksAppend)
+	reqAuthMux.Post("/daily_tasks/update/:id", dailyTasksUpdate)
+	reqAuthMux.Post("/daily_tasks/delete/:id", dailyTasksDelete)
 
 	goji.Get("/api/profiles", showProfilesAPI)
+	goji.Handle("/*", reqAuthMux)
 
 	goji.Serve()
 }
