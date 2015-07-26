@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"fmt"
 	"sync"
+	"errors"
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/mattn/go-sqlite3"
@@ -249,6 +250,24 @@ func (ctx *SubakoContext) Queue(
 	ctx.queueCh <- task
 
 	return nil
+}
+
+
+func (ctx *SubakoContext) FindProcConfig(
+	name, version		string,
+) (*ProcConfig, error) {
+	if _, ok := ctx.ProcConfigSets[name]; !ok {
+		msg := fmt.Sprintf("There are no proc profiles for %s", name)
+		return nil, errors.New(msg)
+	}
+	configSet := ctx.ProcConfigSets[name]
+
+	if _, ok := configSet.VersionedConfigs[version]; !ok {
+		msg := fmt.Sprintf("%s has no proc profile for version %s", name, version)
+		return nil, errors.New(msg)
+	}
+
+	return configSet.VersionedConfigs[version], nil
 }
 
 

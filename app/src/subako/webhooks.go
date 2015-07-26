@@ -55,3 +55,14 @@ func (ctx *WebhookContext) Delete(id uint) error {
 
 	return nil
 }
+
+func (ctx *WebhookContext) GetByTarget(target string) (*Webhook, error) {
+	// TODO: error handling
+	hook := Webhook{}
+	query := ctx.Db.Debug().Where(&Webhook{Target: target}).First(&hook)
+	if query.Error != nil {
+		return nil, query.Error
+	}
+
+	return &hook, nil
+}

@@ -22,6 +22,11 @@ import (
 	"time"
 	"path"
 	"fmt"
+
+	"crypto/hmac"
+	"crypto/sha1"
+
+	"encoding/hex"
 )
 
 var gSubakoCtx *subako.SubakoContext
@@ -83,7 +88,7 @@ func main() {
 	goji.Get("/packages", showPackages)
 
 	goji.Get("/webhooks", webhooks)
-	goji.Post("/webhooks", webhookEvent)
+	goji.Post("/webhooks/:name", webhookEvent)
 	goji.Post("/webhooks/append", webhooksAppend)
 	goji.Post("/webhooks/update/:id", webhooksUpdate)
 	goji.Post("/webhooks/delete/:id", webhooksDelete)
@@ -218,28 +223,19 @@ func status(c web.C, w http.ResponseWriter, r *http.Request) {
 func build(c web.C, w http.ResponseWriter, r *http.Request) {
 	// TODO: add authentication
 
-	fmt.Printf("name => %s\n", c.URLParams["name"])
-	fmt.Printf("version => %s\n", c.URLParams["version"])
+	log.Printf("build name => %s\n", c.URLParams["name"])
+	log.Printf("build version => %s\n", c.URLParams["version"])
 
 	name := c.URLParams["name"]
 	version := c.URLParams["version"]
 
-	if _, ok := gSubakoCtx.ProcConfigSets[name]; !ok {
-		msg := fmt.Sprintf("There are no proc profiles for %s", name)
-		http.Error(w, msg, http.StatusInternalServerError)
-		return
-	}
-	configSet := gSubakoCtx.ProcConfigSets[name]
-
-	if _, ok := configSet.VersionedConfigs[version]; !ok {
-		msg := fmt.Sprintf("%s has no proc profile for version %s", name, version)
-		http.Error(w, msg, http.StatusInternalServerError)
+	procConfig, err := gSubakoCtx.FindProcConfig(name, version)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	taskConfig := configSet.VersionedConfigs[version]
-
-	runningTask := gSubakoCtx.BuildAsync(taskConfig)
+	runningTask := gSubakoCtx.BuildAsync(procConfig)
 
 	url := fmt.Sprintf("/live_status/%d", runningTask.Id)
 	http.Redirect(w, r, url, http.StatusSeeOther)
@@ -248,28 +244,19 @@ func build(c web.C, w http.ResponseWriter, r *http.Request) {
 func queue(c web.C, w http.ResponseWriter, r *http.Request) {
 	// TODO: add authentication
 
-	fmt.Printf("name => %s\n", c.URLParams["name"])
-	fmt.Printf("version => %s\n", c.URLParams["version"])
+	log.Printf("build name => %s\n", c.URLParams["name"])
+	log.Printf("build version => %s\n", c.URLParams["version"])
 
 	name := c.URLParams["name"]
 	version := c.URLParams["version"]
 
-	if _, ok := gSubakoCtx.ProcConfigSets[name]; !ok {
-		msg := fmt.Sprintf("There are no proc profiles for %s", name)
-		http.Error(w, msg, http.StatusInternalServerError)
-		return
-	}
-	configSet := gSubakoCtx.ProcConfigSets[name]
-
-	if _, ok := configSet.VersionedConfigs[version]; !ok {
-		msg := fmt.Sprintf("%s has no proc profile for version %s", name, version)
-		http.Error(w, msg, http.StatusInternalServerError)
+	procConfig, err := gSubakoCtx.FindProcConfig(name, version)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	taskConfig := configSet.VersionedConfigs[version]
-
-	if err := gSubakoCtx.Queue(taskConfig); err != nil {
+	if err := gSubakoCtx.Queue(procConfig); err != nil {
 		http.Error(w, "Failed to add the task to queue", http.StatusInternalServerError)
 		return
 	}
@@ -292,6 +279,61 @@ func showPackages(c web.C, w http.ResponseWriter, r *http.Request) {
 
 // Webhook called from other services
 func webhookEvent(c web.C, w http.ResponseWriter, r *http.Request) {
+	log.Printf("Webhook name => %s\n", c.URLParams["name"])
+
+	// get webhook task from database
+	hook, err := gSubakoCtx.Webhooks.GetByTarget(c.URLParams["name"])
+	if err != nil {
+		msg := fmt.Sprintf("Failed to get the webhook task. %s", err)
+		log.Printf(msg)
+		http.Error(w, msg, http.StatusInternalServerError)
+        return
+	}
+
+	// read payload sent by github
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to read the request body. %s", err)
+		log.Printf(msg)
+		http.Error(w, msg, http.StatusInternalServerError)
+        return
+	}
+
+	payload := func() string {
+		// TODO: support urlencoded
+		return string(body)
+	}()
+
+	githubSig := r.Header.Get("X-Hub-Signature")
+	log.Printf("payload => %s\n", payload)
+	log.Printf("signature => %s\n", githubSig)
+
+	// generate hash
+	mac := hmac.New(sha1.New, []byte(hook.Secret))
+	mac.Write([]byte(payload))
+	expectedMAC := mac.Sum(nil)
+	log.Printf("expected MAC => %s\n", hex.EncodeToString(expectedMAC))
+	generatedSig := "sha1=" + hex.EncodeToString(expectedMAC)
+
+	if githubSig != generatedSig {
+		msg := "Invalid signature"
+		log.Printf(msg)
+		http.Error(w, msg, http.StatusInternalServerError)
+	}
+
+	// queue target script
+	procConfig, err := gSubakoCtx.FindProcConfig(hook.ProcName, hook.Version)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := gSubakoCtx.Queue(procConfig); err != nil {
+		http.Error(w, "Failed to add the task to queue", http.StatusInternalServerError)
+		return
+	}
+
+	// succeeded
 }
 
 func webhooks(c web.C, w http.ResponseWriter, r *http.Request) {
