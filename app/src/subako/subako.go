@@ -31,14 +31,11 @@ type SubakoConfig struct {
 	LogDir					string
 }
 
-type Crontab struct {
-	Hour	int
-	Minute	int
-}
 
 type QueueTask struct {
 	proc	ProcConfig
 }
+
 
 type SubakoContext struct {
 	AptRepoCtx			*AptRepositoryContext
@@ -49,6 +46,7 @@ type SubakoContext struct {
 	RunningTasks		*RunningTasks
 	Profiles			*ProfilesHolder
 	Webhooks			*WebhookContext
+	DailyTasks			*DailyTasksContext
 	LogDir				string
 
 	queueCh				chan QueueTask
@@ -107,6 +105,12 @@ func MakeSubakoContext(config *SubakoConfig) (*SubakoContext, error) {
 		panic(err)
 	}
 
+	// cron
+	dailyTasks, err := MakeDailyTasksContext(db, config.CronData)
+	if err != nil {
+		panic(err)
+	}
+
 	// make context
 	ctx := &SubakoContext{
 		AptRepoCtx: aptRepo,
@@ -117,6 +121,7 @@ func MakeSubakoContext(config *SubakoConfig) (*SubakoContext, error) {
 		RunningTasks: runningTasks,
 		Profiles: profiles,
 		Webhooks: webhooks,
+		DailyTasks: dailyTasks,
 		LogDir: config.LogDir,
 
 		queueCh: make(chan QueueTask, 100),
@@ -129,9 +134,8 @@ func MakeSubakoContext(config *SubakoConfig) (*SubakoContext, error) {
 	cronText := fmt.Sprintf("00 %02d %02d * * *", config.CronData.Minute, config.CronData.Hour)
 	c := cron.New()
 	// sec, min, hour / every
-	_ = cronText
-	//c.AddFunc(cronText, func() { ctx.BuildDailyTask() })
-	c.AddFunc("10 * * * * *", func() { ctx.queueDailyTask() })
+	c.AddFunc(cronText, func() { ctx.queueDailyTask() })
+	// c.AddFunc("10 * * * * *", func() { ctx.queueDailyTask() })	// test
 	c.Start()
 
 	return ctx, nil
@@ -302,8 +306,20 @@ func (ctx *SubakoContext) execQueuedTask() {
 }
 
 func (ctx *SubakoContext) queueDailyTask() {
-	ctx.m.Lock()
-	defer ctx.m.Unlock()
-
 	log.Println("QueueDailyTask is called")
+
+	tasks := ctx.DailyTasks.GetDailyTasks()
+	for _, task := range tasks {
+		proc, err := ctx.FindProcConfig(task.ProcName, task.Version)
+		if err != nil {
+			log.Printf("Failed to find the task :: name: %s / version: %s", task.ProcName, task.Version)
+			continue
+		}
+
+		log.Printf("QueueDailyTask queue :: name: %s / version: %s", task.ProcName, task.Version)
+		if err := ctx.Queue(proc); err != nil {
+			log.Println("Failed to queue the task")
+			continue
+		}
+	}
 }

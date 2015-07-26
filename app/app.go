@@ -93,6 +93,11 @@ func main() {
 	goji.Post("/webhooks/update/:id", webhooksUpdate)
 	goji.Post("/webhooks/delete/:id", webhooksDelete)
 
+	goji.Get("/daily_tasks", dailyTasks)
+	goji.Post("/daily_tasks/append", dailyTasksAppend)
+	goji.Post("/daily_tasks/update/:id", dailyTasksUpdate)
+	goji.Post("/daily_tasks/delete/:id", dailyTasksDelete)
+
 	goji.Get("/api/profiles", showProfilesAPI)
 
 	goji.Serve()
@@ -438,6 +443,93 @@ func webhooksDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/webhooks", http.StatusFound)
+}
+
+
+func dailyTasks(c web.C, w http.ResponseWriter, r *http.Request) {
+	// TODO: Add authentication
+	tasks := gSubakoCtx.DailyTasks.GetDailyTasks()
+
+	tpl, err := pongo2.DefaultSet.FromFile("daily_tasks.html")
+	if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+	tpl.ExecuteWriter(pongo2.Context{
+		"tasks": tasks,
+		"point": gSubakoCtx.DailyTasks.Point,
+		"now": time.Now(),
+	}, w)
+}
+
+func dailyTasksAppend(c web.C, w http.ResponseWriter, r *http.Request) {
+	if r.FormValue("proc_name") == "" {
+		http.Error(w, "proc_name is empty", http.StatusInternalServerError)
+		return
+	}
+	if r.FormValue("version") == "" {
+		http.Error(w, "version is empty", http.StatusInternalServerError)
+		return
+	}
+
+	task := &subako.DailyTask{
+		ProcName: r.FormValue("proc_name"),
+		Version: r.FormValue("version"),
+	}
+
+	if err := gSubakoCtx.DailyTasks.Append(task); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/daily_tasks", http.StatusFound)
+}
+
+func dailyTasksUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
+	log.Printf("DailyTask Id => %s\n", c.URLParams["id"])
+	id, err := strconv.ParseUint(c.URLParams["id"], 10, 32)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusInternalServerError)
+		return
+	}
+
+	if r.FormValue("proc_name") == "" {
+		http.Error(w, "proc_name is empty", http.StatusInternalServerError)
+		return
+	}
+	if r.FormValue("version") == "" {
+		http.Error(w, "version is empty", http.StatusInternalServerError)
+		return
+	}
+
+	task := &subako.DailyTask{
+		ProcName: r.FormValue("proc_name"),
+		Version: r.FormValue("version"),
+	}
+
+	if err := gSubakoCtx.DailyTasks.Update(uint(id), task); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/daily_tasks", http.StatusFound)
+}
+
+func dailyTasksDelete(c web.C, w http.ResponseWriter, r *http.Request) {
+	log.Printf("DailyTask Id => %s\n", c.URLParams["id"])
+	id, err := strconv.ParseUint(c.URLParams["id"], 10, 32)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusInternalServerError)
+		return
+	}
+
+	if err := gSubakoCtx.DailyTasks.Delete(uint(id)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/daily_tasks", http.StatusFound)
 }
 
 

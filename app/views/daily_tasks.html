@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<h1>Daily Tasks</h1>
+
+CurrentDate: {{ now }}<br>
+ExecTime: {{ point.Hour }}:{{ point.Minute }}<br>
+
+<table class="table table-striped">
+    <tr>
+        <th>proc name</th>
+        <th>version</th>
+        <th></th>
+        <th></th>
+    </tr>
+
+    {% for task in tasks %}
+    <tr>
+        <form action="/daily_tasks/update/{{ task.ID }}" method="post" class="form-inline">
+            <th>
+                <input type="text" name="proc_name" class="form-control" value="{{ task.ProcName }}">
+            </th>
+            <th>
+                <input type="text" name="version" class="form-control" value="{{ task.Version }}">
+            </th>
+
+            <th>
+                <input type="submit" class="btn btn-primary" value="Update">
+            </th>
+        </form>
+
+        <form action="/daily_tasks/delete/{{ task.ID }}" method="post">
+            <th>
+                <input type="submit" class="btn btn-danger" value="Delete">
+            </th>
+        </form>
+    </tr>
+    {% endfor %}
+
+    <tr>
+        <form action="/daily_tasks/append" method="post" class="form-inline">
+            <th>
+                <input type="text" name="proc_name" class="form-control" placeholder="test">
+            </th>
+            <th>
+                <input type="text" name="version" class="form-control" placeholder="HEAD">
+            </th>
+
+            <th>
+                <input type="submit" class="btn btn-info" value="Append">
+            </th>
+        </form>
+
+        <th></th>
+    </tr>
+</table>
+
+{% endblock %}
