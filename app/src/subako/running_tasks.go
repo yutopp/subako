@@ -39,7 +39,6 @@ type RunningTask struct {
 	Id					int
 	LogName				string
 	LogFilePath			string
-	IsActive			bool
 	Status				RunningStatus
 	ErrorText			string
 }
@@ -50,6 +49,10 @@ func (rt *RunningTask) GetError() error {
 	} else {
 		return errors.New(rt.ErrorText)
 	}
+}
+
+func (rt *RunningTask) IsActive() bool {
+	return rt.Status == TaskRunning
 }
 
 
@@ -93,7 +96,6 @@ func (rt *RunningTasks) Save() error {
 	for _, task := range rt.Tasks {
 		if task.Status == TaskRunning {
 			task.Status = TaskAborted
-			task.IsActive = false
 		}
 	}
 

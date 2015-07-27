@@ -220,7 +220,7 @@ func liveStatus(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// if task has been already finished, move to static status page
-	if !runningTask.IsActive {
+	if !runningTask.IsActive() {
 		url := fmt.Sprintf("/status/%d", runningTask.Id)
 		http.Redirect(w, r, url, http.StatusMovedPermanently)
 		return
@@ -251,7 +251,7 @@ func liveStatus(c web.C, w http.ResponseWriter, r *http.Request) {
 	// finish when task finished
 	go func() {
 		for {
-			if !runningTask.IsActive {
+			if !runningTask.IsActive() {
 				t.Stop()
 				break
 			}
@@ -282,7 +282,7 @@ func status(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if runningTask.IsActive {
+	if runningTask.IsActive() {
 		http.Error(w, "task is now active", http.StatusInternalServerError)
 		return
 	}

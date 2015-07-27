@@ -166,8 +166,6 @@ func (ctx *SubakoContext) Build(
 		task = ctx.RunningTasks.createTaskHolder()
 	}
 
-	task.IsActive = true
-	defer func() { task.IsActive = false }()
 	task.Status = TaskRunning
 
 	logName := fmt.Sprintf("%s-%s-%s", taskConfig.name, taskConfig.version, time.Now())
@@ -240,6 +238,10 @@ func (ctx *SubakoContext) Build(
 	// notify
 	if ctx.NotificationCtx != nil {
 		if err := ctx.NotificationCtx.PostUpdate(map[string]string{
+			"name": taskConfig.name,
+			"version": taskConfig.version,
+			"display_version": result.DisplayVersion,
+			"unix_time": fmt.Sprintf("%v", time.Now().Unix()),
 		}); err != nil {
 			task.ErrorText = err.Error()
 			task.Status = TaskWarning
