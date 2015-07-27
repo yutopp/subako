@@ -69,7 +69,7 @@ func (ph *ProfilesHolder) Save() error {
 
 func (ph *ProfilesHolder) GenerateProcProfiles(
 	ap	*AvailablePackages,
-	pc	ProcConfigSets,
+	pc	ProcConfigMap,
 ) error {
 
 	targetProfileTemplates := make(propMap)

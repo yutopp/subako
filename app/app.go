@@ -5,7 +5,7 @@ import (
 
 	"os"
 	"log"
-
+	"path/filepath"
 	"net/http"
 
 	"io/ioutil"
@@ -46,6 +46,11 @@ type userConfig struct {
 		User		string
 		Password	string
 	}
+	ConfigSets		struct {
+		Remote		bool
+		Path		string
+		Repository	string
+	} `yaml:"config_sets"`
 }
 
 func main() {
@@ -71,6 +76,11 @@ func main() {
 	//
 	log.Printf("Notification URL: %s", uConfig.Notification.Url)
 	log.Printf("Cron Timing: %d:%d", uConfig.Cron.Hour, uConfig.Cron.Minute)
+	log.Printf("ConfigSets IsRemote: %v", uConfig.ConfigSets.Remote)
+	log.Printf("ConfigSets Path: %s", uConfig.ConfigSets.Path)
+	if uConfig.ConfigSets.Remote {
+		log.Printf("ConfigSets Repository: %s", uConfig.ConfigSets.Repository)
+	}
 
 	// make storage dir
 	storageDir := path.Join(cwd, "_storage")
@@ -82,7 +92,21 @@ func main() {
 
 	// make config
 	config := &subako.SubakoConfig{
-		ProcConfigSetsBaseDir: path.Join(cwd, "../proc_configs_test"),
+		ProcConfigSetsConf: func() *subako.ProcConfigSetsConfig {
+			path := func() string {
+				if filepath.IsAbs(uConfig.ConfigSets.Path) {
+					return path.Join(cwd, uConfig.ConfigSets.Path)
+				} else {
+					return uConfig.ConfigSets.Path
+				}
+			}()
+
+			return &subako.ProcConfigSetsConfig{
+				IsRemote: uConfig.ConfigSets.Remote,
+				BaseDir: path,
+				Repository: uConfig.ConfigSets.Repository,
+			}
+		}(),
 		AvailablePackagesPath: path.Join(storageDir, "available_packages.json"),
 		AptRepositoryBaseDir: path.Join(storageDir, "apt_repository"),
 		VirtualUsrDir: path.Join(storageDir, "torigoya_usr"),
@@ -147,6 +171,8 @@ func main() {
 	reqAuthMux.Post("/daily_tasks/update/:id", dailyTasksUpdate)
 	reqAuthMux.Post("/daily_tasks/delete/:id", dailyTasksDelete)
 
+	reqAuthMux.Get("/update_proc_config_sets", updateProcConfigSets)
+
 	goji.Get("/api/profiles", showProfilesAPI)
 	goji.Handle("/*", reqAuthMux)
 
@@ -163,7 +189,7 @@ func index(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	tasksForDisplay := gSubakoCtx.RunningTasks.MakeDisplayTask()
 	tpl.ExecuteWriter(pongo2.Context{
-		"config_sets": gSubakoCtx.ProcConfigSets,
+		"config_sets_ctx": gSubakoCtx.ProcConfigSetsCtx,
 		"tasks": tasksForDisplay,
 		"queued_tasks": gSubakoCtx.QueueHelper,
 	}, w)
@@ -284,7 +310,7 @@ func build(c web.C, w http.ResponseWriter, r *http.Request) {
 	name := c.URLParams["name"]
 	version := c.URLParams["version"]
 
-	procConfig, err := gSubakoCtx.FindProcConfig(name, version)
+	procConfig, err := gSubakoCtx.ProcConfigSetsCtx.Find(name, version)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -305,7 +331,7 @@ func queue(c web.C, w http.ResponseWriter, r *http.Request) {
 	name := c.URLParams["name"]
 	version := c.URLParams["version"]
 
-	procConfig, err := gSubakoCtx.FindProcConfig(name, version)
+	procConfig, err := gSubakoCtx.ProcConfigSetsCtx.Find(name, version)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -377,7 +403,7 @@ func webhookEvent(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// queue target script
-	procConfig, err := gSubakoCtx.FindProcConfig(hook.ProcName, hook.Version)
+	procConfig, err := gSubakoCtx.ProcConfigSetsCtx.Find(hook.ProcName, hook.Version)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -580,6 +606,16 @@ func dailyTasksDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/daily_tasks", http.StatusFound)
+}
+
+
+func updateProcConfigSets(c web.C, w http.ResponseWriter, r *http.Request) {
+	if err := gSubakoCtx.ProcConfigSetsCtx.Update(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 

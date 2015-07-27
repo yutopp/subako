@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"fmt"
 	"sync"
-	"errors"
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/mattn/go-sqlite3"
@@ -15,9 +14,8 @@ import (
 	"github.com/robfig/cron"
 )
 
-
 type SubakoConfig struct {
-	ProcConfigSetsBaseDir	string
+	ProcConfigSetsConf		*ProcConfigSetsConfig
 	AvailablePackagesPath	string
 	AptRepositoryBaseDir	string
 	VirtualUsrDir			string
@@ -40,8 +38,7 @@ type QueueTask struct {
 type SubakoContext struct {
 	AptRepoCtx			*AptRepositoryContext
 	BuilderCtx			*BuilderContext
-	ProcConfigSetsDir	string
-	ProcConfigSets		ProcConfigSets
+	ProcConfigSetsCtx	*ProcConfigSetsContext
 	AvailablePackages	*AvailablePackages
 	RunningTasks		*RunningTasks
 	Profiles			*ProfilesHolder
@@ -73,7 +70,10 @@ func MakeSubakoContext(config *SubakoConfig) (*SubakoContext, error) {
 	}
 
 	// Config Sets
-	procConfigSets := MakeProcConfigs(config.ProcConfigSetsBaseDir)
+	procConfigSetsCtx, err := MakeProcConfigSetsContext(config.ProcConfigSetsConf)
+	if err != nil {
+		panic(err)
+	}
 
 	// Available Packages
 	availablePackages, err := LoadAvailablePackages(config.AvailablePackagesPath)
@@ -115,8 +115,7 @@ func MakeSubakoContext(config *SubakoConfig) (*SubakoContext, error) {
 	ctx := &SubakoContext{
 		AptRepoCtx: aptRepo,
 		BuilderCtx: builderCtx,
-		ProcConfigSetsDir: config.ProcConfigSetsBaseDir,
-		ProcConfigSets: procConfigSets,
+		ProcConfigSetsCtx: procConfigSetsCtx,
 		AvailablePackages: availablePackages,
 		RunningTasks: runningTasks,
 		Profiles: profiles,
@@ -178,7 +177,7 @@ func (ctx *SubakoContext) Build(
 	defer w.Close()
 	task.LogFilePath = logFilePath
 
-	result, err := ctx.BuilderCtx.build(taskConfig, ctx.ProcConfigSetsDir, w)
+	result, err := ctx.BuilderCtx.build(taskConfig, ctx.ProcConfigSetsCtx.BaseDir, w)
 	if err != nil {
 		log.Printf("Failed to build / %v", err)
 		task.ErrorText = fmt.Sprintf("%s", err)
@@ -207,7 +206,7 @@ func (ctx *SubakoContext) Build(
 	// update profiles
 	if err := ctx.Profiles.GenerateProcProfiles(
 		ctx.AvailablePackages,
-		ctx.ProcConfigSets,
+		ctx.ProcConfigSetsCtx.Map,
 	); err != nil {
 		task.ErrorText = fmt.Sprintf("%s", err)
 		task.Status = TaskFailed
@@ -257,24 +256,6 @@ func (ctx *SubakoContext) Queue(
 }
 
 
-func (ctx *SubakoContext) FindProcConfig(
-	name, version		string,
-) (*ProcConfig, error) {
-	if _, ok := ctx.ProcConfigSets[name]; !ok {
-		msg := fmt.Sprintf("There are no proc profiles for %s", name)
-		return nil, errors.New(msg)
-	}
-	configSet := ctx.ProcConfigSets[name]
-
-	if _, ok := configSet.VersionedConfigs[version]; !ok {
-		msg := fmt.Sprintf("%s has no proc profile for version %s", name, version)
-		return nil, errors.New(msg)
-	}
-
-	return configSet.VersionedConfigs[version], nil
-}
-
-
 func (ctx *SubakoContext) Save(
 ) error {
 	if err := ctx.AvailablePackages.Save(); err != nil {
@@ -291,6 +272,7 @@ func (ctx *SubakoContext) Save(
 
 	return nil
 }
+
 
 // running on goroutine
 func (ctx *SubakoContext) execQueuedTask() {
@@ -310,7 +292,7 @@ func (ctx *SubakoContext) queueDailyTask() {
 
 	tasks := ctx.DailyTasks.GetDailyTasks()
 	for _, task := range tasks {
-		proc, err := ctx.FindProcConfig(task.ProcName, task.Version)
+		proc, err := ctx.ProcConfigSetsCtx.Find(task.ProcName, task.Version)
 		if err != nil {
 			log.Printf("Failed to find the task :: name: %s / version: %s", task.ProcName, task.Version)
 			continue

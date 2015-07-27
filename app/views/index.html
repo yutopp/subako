@@ -2,8 +2,13 @@
 
 {% block content %}
 <div class="row">
+    {% if config_sets_ctx.IsRemote %}
+    {{ config_sets_ctx.Repo.Revision }}
+    {% endif %}
+    <a href="/update_proc_config_sets">Update</a>
+
     <div class="col-xs-12">
-        {% for name, config_set in config_sets %}
+        {% for name, config_set in config_sets_ctx.Map %}
         - {{ name }}<br>
         {% for version, config in config_set.VersionedConfigs %}
         <a href="/build/{{ name | urlencode}}/{{ version | urlencode}}">build {{ name }} {{ version }}</a><br>
