@@ -20,9 +20,22 @@
         {# aborted #}
         <span class="label label-danger">Aborted</span>
 
+        {% elif task.Status == 4 %}
+        {# warning #}
+        <span class="label label-warning">Warning</span>
+
         {% endif %}
     </div>
 </div>
+
+{% if task.ErrorText != "" %}
+<div class="row">
+    <div class="col-xs-12">
+        <pre>{{ task.ErrorText }}</pre>
+    </div>
+</div>
+{% endif %}
+
 <div class="row">
     <div class="col-xs-12">
         <pre>{{ buffer }}</pre>

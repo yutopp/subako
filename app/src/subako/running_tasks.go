@@ -16,6 +16,7 @@ const (
 	TaskSucceeded = RunningStatus(1)
 	TaskFailed = RunningStatus(2)
 	TaskAborted = RunningStatus(3)
+	TaskWarning = RunningStatus(4)
 )
 
 func (s RunningStatus) String() string {
@@ -28,6 +29,8 @@ func (s RunningStatus) String() string {
 		return "Failed"
 	case TaskAborted:
 		return "Aborted"
+	case TaskWarning:
+		return "Warning"
 	}
 	return ""
 }

@@ -1,3 +1,6 @@
+server:
+  port: 8000
+
 notification:
   url: "http://localhost:3000/"
   secret: "secretsecret"

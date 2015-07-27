@@ -199,11 +199,11 @@ func transformStringArrayMap(gen map[string][]string, f func(string) string) map
 }
 
 type ExecProfileTemplate struct {
-	Extension			string					`yaml:"extension,omitempty"`
-	Commands			[]string				`yaml:"commands"`
-	Envs				map[string]string		`yaml:"envs,omitempty"`
-	FixedCommands		[][]string				`yaml:"fixed_commands,omitempty"`
-	SelectableCommands	map[string][]string		`yaml:"selectable_commands,omitempty"`
+	Extension			string					`yaml:"extension,omitempty"				json:"extention"`
+	Commands			[]string				`yaml:"commands"						json:"commands"`
+	Envs				map[string]string		`yaml:"envs,omitempty"					json:"envs"`
+	FixedCommands		[][]string				`yaml:"fixed_commands,omitempty"		json:"fixed_commands"`
+	SelectableCommands	map[string][]string		`yaml:"selectable_commands,omitempty"	json:"selectable_commands"`
 }
 
 func (ept *ExecProfileTemplate) String() string {

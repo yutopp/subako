@@ -24,7 +24,7 @@ type SubakoConfig struct {
 	RunningTasksPath		string
 	ProfilesHolderPath		string
 	DataBasePath			string
-	UpdatedNotificationURL	string
+	NotificationConf		*NotificationConfig
 	CronData				Crontab
 	LogDir					string
 }
@@ -43,6 +43,7 @@ type SubakoContext struct {
 	RunningTasks		*RunningTasks
 	Profiles			*ProfilesHolder
 	Webhooks			*WebhookContext
+	NotificationCtx		*NotificationContext
 	DailyTasks			*DailyTasksContext
 	LogDir				string
 
@@ -105,6 +106,12 @@ func MakeSubakoContext(config *SubakoConfig) (*SubakoContext, error) {
 		panic(err)
 	}
 
+	// notification
+	notificationCtx, err := MakeNotificationContext(config.NotificationConf)
+	if err != nil {
+		panic(err)
+	}
+
 	// cron
 	dailyTasks, err := MakeDailyTasksContext(db, config.CronData)
 	if err != nil {
@@ -120,6 +127,7 @@ func MakeSubakoContext(config *SubakoConfig) (*SubakoContext, error) {
 		RunningTasks: runningTasks,
 		Profiles: profiles,
 		Webhooks: webhooks,
+		NotificationCtx: notificationCtx,
 		DailyTasks: dailyTasks,
 		LogDir: config.LogDir,
 
@@ -180,7 +188,7 @@ func (ctx *SubakoContext) Build(
 	result, err := ctx.BuilderCtx.build(taskConfig, ctx.ProcConfigSetsCtx.BaseDir, w)
 	if err != nil {
 		log.Printf("Failed to build / %v", err)
-		task.ErrorText = fmt.Sprintf("%s", err)
+		task.ErrorText = err.Error()
 		task.Status = TaskFailed
 
 		w.Write([]byte(fmt.Sprintf("Error occured => %s\n", err)))
@@ -197,18 +205,15 @@ func (ctx *SubakoContext) Build(
 		DisplayVersion: result.DisplayVersion,
 		InstallBase: "/usr/local/torigoya",		// TODO: fix
 	}); err != nil {
-		task.ErrorText = fmt.Sprintf("%s", err)
+		task.ErrorText = err.Error()
 		task.Status = TaskFailed
 
 		return task
 	}
 
 	// update profiles
-	if err := ctx.Profiles.GenerateProcProfiles(
-		ctx.AvailablePackages,
-		ctx.ProcConfigSetsCtx.Map,
-	); err != nil {
-		task.ErrorText = fmt.Sprintf("%s", err)
+	if err := ctx.UpdateProfiles(); err != nil {
+		task.ErrorText = err.Error()
 		task.Status = TaskFailed
 
 		return task
@@ -217,7 +222,7 @@ func (ctx *SubakoContext) Build(
 	// update repository
 	debPath := filepath.Join(ctx.BuilderCtx.packagesDir, result.PkgFileName)
 	if err := ctx.AptRepoCtx.AddPackage(debPath); err != nil {
-		task.ErrorText = fmt.Sprintf("%s", err)
+		task.ErrorText = err.Error()
 		task.Status = TaskFailed
 
 		return task
@@ -233,11 +238,21 @@ func (ctx *SubakoContext) Build(
 	}
 
 	// notify
+	if ctx.NotificationCtx != nil {
+		if err := ctx.NotificationCtx.PostUpdate(map[string]string{
+		}); err != nil {
+			task.ErrorText = err.Error()
+			task.Status = TaskWarning
+
+			return task
+		}
+	}
 
 	task.Status = TaskSucceeded
 
 	return task
 }
+
 
 func (ctx *SubakoContext) Queue(
 	procConfig			*ProcConfig,
@@ -304,4 +319,12 @@ func (ctx *SubakoContext) queueDailyTask() {
 			continue
 		}
 	}
+}
+
+
+func (ctx *SubakoContext) UpdateProfiles() error {
+	return ctx.Profiles.GenerateProcProfiles(
+		ctx.AvailablePackages,
+		ctx.ProcConfigSetsCtx.Map,
+	)
 }

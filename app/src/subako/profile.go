@@ -9,15 +9,15 @@ import (
 
 type ExecProfile ExecProfileTemplate
 type Profile struct {
-	Name				string
-	Version				string
-	DisplayVersion		string
-	IsBuildRequired		bool
-	IsLinkIndependent	bool
+	Name				string			`json:"name"`
+	Version				string			`json:"version"`
+	DisplayVersion		string			`json:"display_version"`
+	IsBuildRequired		bool			`json:"is_build_required"`
+	IsLinkIndependent	bool			`json:"is_link_independent"`
 
-	Compile				*ExecProfile
-	Link				*ExecProfile
-	Run					*ExecProfile
+	Compile				*ExecProfile	`json:"compile"`
+	Link				*ExecProfile	`json:"link"`
+	Run					*ExecProfile	`json:"run"`
 }
 
 
@@ -131,7 +131,6 @@ func (ph *ProfilesHolder) GenerateProcProfiles(
 			log.Printf("PATCH %v\n", patch)
 		}
 	}
-
 
 	// GENERATE
 	profiles := make([]Profile, 0)

@@ -6,7 +6,8 @@
         {% if config_sets_ctx.IsRemote %}
         Revision: {{ config_sets_ctx.Repo.Revision }}<br>
         {% endif %}
-        <a href="/update_proc_config_sets">Update ProcConfigSets</a>
+        <a href="/update_proc_config_sets">Update ProcConfigSets</a><br>
+        <a href="/regenerate_profiles">Regenerate Profiles</a>
     </div>
 </div>
 
@@ -41,24 +42,30 @@
         <ul>
             {% for task in tasks %}
 
-            {% if task.Status == 0 %}
-            {# running #}
+            <li><a href="/{% if task.IsActive %}live_status{% else %}status{% endif %}/{{task.Id}}">{{task.LogName}}</a>
 
-            <li><a href="/{% if task.IsActive %}live_status{% else %}status{% endif %}/{{task.Id}}">{{task.LogName}}</a> <span class="label label-primary">Running</span></li>
+                {% if task.Status == 0 %}
+                {# running #}
+                <span class="label label-primary">Running</span>
 
-            {% elif task.Status == 1 %}
-            {# succeeded #}
-            <li><a href="/{% if task.IsActive %}live_status{% else %}status{% endif %}/{{task.Id}}">{{task.LogName}}</a> <span class="label label-success">Succeeded</span></li>
+                {% elif task.Status == 1 %}
+                {# succeeded #}
+                <span class="label label-success">Succeeded</span>
 
-            {% elif task.Status == 2 %}
-            {# failed #}
-            <li><a href="/{% if task.IsActive %}live_status{% else %}status{% endif %}/{{task.Id}}">{{task.LogName}}</a> <span class="label label-danger">Failed</span></li>
+                {% elif task.Status == 2 %}
+                {# failed #}
+                <span class="label label-danger">Failed</span>
 
-            {% elif task.Status == 3 %}
-            {# aborted #}
-            <li><a href="/{% if task.IsActive %}live_status{% else %}status{% endif %}/{{task.Id}}">{{task.LogName}}</a> <span class="label label-danger">Aborted</span></li>
+                {% elif task.Status == 3 %}
+                {# aborted #}
+                <span class="label label-danger">Aborted</span>
 
-            {% endif %}
+                {% elif task.Status == 4 %}
+                {# warning #}
+                <span class="label label-warning">Warning</span>
+
+                {% endif %}
+            </li>
 
             {% endfor %}
         </ul>

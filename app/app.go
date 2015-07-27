@@ -3,11 +3,11 @@ package main
 import (
 	"subako"
 
+	"flag"
 	"os"
 	"log"
 	"path/filepath"
 	"net/http"
-
 	"io/ioutil"
 
 	"github.com/zenazn/goji"
@@ -27,13 +27,15 @@ import (
 
 	"crypto/hmac"
 	"crypto/sha1"
-
 	"encoding/hex"
 )
 
 var gSubakoCtx *subako.SubakoContext
 
 type userConfig struct {
+	Server			struct {
+		Port		int
+	}
 	Notification	struct {
 		Url			string
 		Secret		string
@@ -74,6 +76,7 @@ func main() {
 	}
 
 	//
+	log.Printf("Port: %s", uConfig.Server.Port)
 	log.Printf("Notification URL: %s", uConfig.Notification.Url)
 	log.Printf("Cron Timing: %d:%d", uConfig.Cron.Hour, uConfig.Cron.Minute)
 	log.Printf("ConfigSets IsRemote: %v", uConfig.ConfigSets.Remote)
@@ -81,6 +84,9 @@ func main() {
 	if uConfig.ConfigSets.Remote {
 		log.Printf("ConfigSets Repository: %s", uConfig.ConfigSets.Repository)
 	}
+
+	// port
+	flag.Set("bind", fmt.Sprintf(":%d", uConfig.Server.Port))
 
 	// make storage dir
 	storageDir := path.Join(cwd, "_storage")
@@ -92,7 +98,7 @@ func main() {
 
 	// make config
 	config := &subako.SubakoConfig{
-		ProcConfigSetsConf: func() *subako.ProcConfigSetsConfig {
+		ProcConfigSetsConf: func() *subako.ProcConfigSetsConfig{
 			path := func() string {
 				if filepath.IsAbs(uConfig.ConfigSets.Path) {
 					return uConfig.ConfigSets.Path
@@ -115,7 +121,10 @@ func main() {
 		RunningTasksPath: path.Join(storageDir, "running_tasks.json"),
 		ProfilesHolderPath: path.Join(storageDir, "proc_profiles.json"),
 		DataBasePath: path.Join(storageDir, "db.sqlite"),
-		UpdatedNotificationURL: uConfig.Notification.Url,
+		NotificationConf: &subako.NotificationConfig{
+			TargetUrl: uConfig.Notification.Url,
+			Secret: uConfig.Notification.Secret,
+		},
 		CronData: subako.Crontab {
 			Hour: uConfig.Cron.Hour,
 			Minute: uConfig.Cron.Minute,
@@ -172,6 +181,7 @@ func main() {
 	reqAuthMux.Post("/daily_tasks/delete/:id", dailyTasksDelete)
 
 	reqAuthMux.Get("/update_proc_config_sets", updateProcConfigSets)
+	reqAuthMux.Get("/regenerate_profiles", regenerateProfiles)
 
 	goji.Get("/api/profiles", showProfilesAPI)
 	goji.Handle("/*", reqAuthMux)
@@ -606,6 +616,16 @@ func updateProcConfigSets(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	http.Redirect(w, r, "/", http.StatusFound)
 }
+
+func regenerateProfiles(c web.C, w http.ResponseWriter, r *http.Request) {
+	if err := gSubakoCtx.UpdateProfiles(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusFound)
+}
+
 
 
 func showProfilesAPI(c web.C, w http.ResponseWriter, r *http.Request) {
