@@ -196,18 +196,16 @@ func index(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func liveStatus(c web.C, w http.ResponseWriter, r *http.Request) {
-	// TODO: add authentication
-
 	log.Printf("Running Task Id => %s\n", c.URLParams["id"])
 	id, err := strconv.ParseInt(c.URLParams["id"], 10, 32)
 	if err != nil {
-		// ERROR
+		http.Error(w, "Invalid id", http.StatusInternalServerError)
 		return
 	}
 
 	runningTask := gSubakoCtx.RunningTasks.Get(int(id))
 	if runningTask == nil {
-		// ERROR
+		http.Error(w, "task is nil", http.StatusInternalServerError)
 		return
 	}
 
@@ -215,7 +213,6 @@ func liveStatus(c web.C, w http.ResponseWriter, r *http.Request) {
 	if !runningTask.IsActive {
 		url := fmt.Sprintf("/status/%d", runningTask.Id)
 		http.Redirect(w, r, url, http.StatusMovedPermanently)
-
 		return
 	}
 
@@ -227,12 +224,12 @@ func liveStatus(c web.C, w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
     if !ok {
 		// ERROR
-		panic("expected http.ResponseWriter to be an http.Flusher")
+		http.Error(w, "Failed to cast to http.Flusher", http.StatusInternalServerError)
     }
 
 	t, err := tail.TailFile(runningTask.LogFilePath, tail.Config{ Follow: true })
 	if err != nil {
-		// ERROR
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -262,29 +259,27 @@ func liveStatus(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func status(c web.C, w http.ResponseWriter, r *http.Request) {
-	// TODO: add authentication
-
 	log.Printf("Running Task Id => %s\n", c.URLParams["id"])
 	id, err := strconv.ParseInt(c.URLParams["id"], 10, 32)
 	if err != nil {
+		http.Error(w, "Invalid id", http.StatusInternalServerError)
 		return
 	}
 
 	runningTask := gSubakoCtx.RunningTasks.Get(int(id))
 	if runningTask == nil {
-		// ERROR
+		http.Error(w, "task is nil", http.StatusInternalServerError)
 		return
 	}
 
-	// if task has been already finished, move to static status page
 	if runningTask.IsActive {
-		// ERROR
+		http.Error(w, "task is now active", http.StatusInternalServerError)
 		return
 	}
 
 	buffer, err := ioutil.ReadFile(runningTask.LogFilePath)
 	if err != nil {
-		// ERROR
+		http.Error(w, "Failed to read logfile", http.StatusInternalServerError)
 		return
 	}
 
@@ -302,8 +297,6 @@ func status(c web.C, w http.ResponseWriter, r *http.Request) {
 
 
 func build(c web.C, w http.ResponseWriter, r *http.Request) {
-	// TODO: add authentication
-
 	log.Printf("build name => %s\n", c.URLParams["name"])
 	log.Printf("build version => %s\n", c.URLParams["version"])
 
@@ -323,8 +316,6 @@ func build(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func queue(c web.C, w http.ResponseWriter, r *http.Request) {
-	// TODO: add authentication
-
 	log.Printf("build name => %s\n", c.URLParams["name"])
 	log.Printf("build version => %s\n", c.URLParams["version"])
 
@@ -418,7 +409,6 @@ func webhookEvent(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func webhooks(c web.C, w http.ResponseWriter, r *http.Request) {
-	// TODO: Add authentication
 	webhooks := gSubakoCtx.Webhooks.GetWebhooks()
 
 	tpl, err := pongo2.DefaultSet.FromFile("webhooks.html")
@@ -523,7 +513,6 @@ func webhooksDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 
 
 func dailyTasks(c web.C, w http.ResponseWriter, r *http.Request) {
-	// TODO: Add authentication
 	tasks := gSubakoCtx.DailyTasks.GetDailyTasks()
 
 	tpl, err := pongo2.DefaultSet.FromFile("daily_tasks.html")
