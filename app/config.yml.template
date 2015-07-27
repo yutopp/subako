@@ -1,0 +1,20 @@
+notification:
+  url: "http://localhost:3000/"
+  secret: "secretsecret"
+
+cron:
+  hour: 2
+  minute: 50
+
+auth:
+  user: "testuser"
+  password: "test"
+
+config_sets:
+  remote: False
+  path: "../proc_configs"
+
+#config_sets:
+#  remote: True
+#  path: "../proc_configs_repo"
+#  repository: "https://github.com/yutopp/torigoya_package_configs.git"
