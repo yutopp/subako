@@ -19,7 +19,7 @@
             <li>{{ config_set.Name }}</li>
             <ul>
                 {% for c in config_set.SortedConfigs() %}
-                <li>{{ c.version }} <strong><a href="/queue/{{ c.name | urlencode}}/{{ c.version | urlencode}}">to_queue</a></strong> <a href="/build/{{ c.name | urlencode}}/{{ c.version | urlencode}}">exec</a></li>
+                <li>{{ c.version }} <strong><a href="/queue/{{ c.name | urlencode}}/{{ c.version | urlencode}}">to_queue</a></strong>[<a href="/build/{{ c.name | urlencode}}/{{ c.version | urlencode}}">exec</a>]</li>
                 {% endfor %}
             </ul>
         {% endfor %}
@@ -43,7 +43,6 @@
             {% for task in tasks %}
 
             <li><a href="/{% if task.IsActive %}live_status{% else %}status{% endif %}/{{task.Id}}">{{task.LogName}}</a>
-
                 {% if task.Status == 0 %}
                 {# running #}
                 <span class="label label-primary">Running</span>

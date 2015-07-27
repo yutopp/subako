@@ -305,7 +305,7 @@ func (pc *ProcConfigSet) SortedConfigs() []*ProcConfig {
     for k := range pc.VersionedConfigs {
         keys = append(keys, k)
     }
-    sort.Strings(keys)
+    sort.Sort(sort.Reverse(sort.StringSlice(keys)))
 
 	var confs []*ProcConfig
 	for _, version := range keys {

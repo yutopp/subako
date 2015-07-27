@@ -129,13 +129,14 @@ func (rt *RunningTasks) Get(id int) *RunningTask {
 func (rt *RunningTasks) MakeDisplayTask() []*RunningTask {
 	rt.m.Lock()
 	defer rt.m.Unlock()
+	num := minI(rt.Next, 30)
 
-	arr := make([]*RunningTask, rt.Next)
+	arr := make([]*RunningTask, num)
 	if rt.Next == 0 { return arr }
 
-	for i := 0; i < minI(rt.Next, 30); i++ {
+	for i := 0; i < num; i++ {
 		ti := rt.Next - i - 1
-		log.Printf("DisplayTask %d", ti)
+		// log.Printf("DisplayTask %d", ti)
 		arr[i] = rt.Tasks[ti]
 	}
 
