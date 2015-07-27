@@ -95,9 +95,9 @@ func main() {
 		ProcConfigSetsConf: func() *subako.ProcConfigSetsConfig {
 			path := func() string {
 				if filepath.IsAbs(uConfig.ConfigSets.Path) {
-					return path.Join(cwd, uConfig.ConfigSets.Path)
-				} else {
 					return uConfig.ConfigSets.Path
+				} else {
+					return path.Join(cwd, uConfig.ConfigSets.Path)
 				}
 			}()
 

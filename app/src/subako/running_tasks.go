@@ -4,14 +4,18 @@ import (
 	"log"
 	"sync"
 	"errors"
+	"os"
 )
 
+
+const maxShowingTaskNum = 30
 
 type RunningStatus int
 const (
 	TaskRunning = RunningStatus(0)
 	TaskSucceeded = RunningStatus(1)
 	TaskFailed = RunningStatus(2)
+	TaskAborted = RunningStatus(3)
 )
 
 func (s RunningStatus) String() string {
@@ -22,6 +26,8 @@ func (s RunningStatus) String() string {
 		return "Succeeded"
 	case TaskFailed:
 		return "Failed"
+	case TaskAborted:
+		return "Aborted"
 	}
 	return ""
 }
@@ -64,6 +70,29 @@ func LoadRunningTasks(path string) (*RunningTasks, error) {
 func (rt *RunningTasks) Save() error {
 	rt.m.Lock()
 	defer rt.m.Unlock()
+
+	// throw away...
+	if len(rt.Tasks) > maxShowingTaskNum {
+		ln := len(rt.Tasks)
+		for _, task := range rt.Tasks[:ln-maxShowingTaskNum] {
+			log.Printf("deleting log file => %s", task.LogFilePath)
+			os.Remove(task.LogFilePath)
+		}
+
+		rt.Tasks = rt.Tasks[ln-maxShowingTaskNum:ln]
+		for i, task := range rt.Tasks {
+			task.Id = i
+		}
+		rt.Next = maxShowingTaskNum
+	}
+
+	//
+	for _, task := range rt.Tasks {
+		if task.Status == TaskRunning {
+			task.Status = TaskAborted
+			task.IsActive = false
+		}
+	}
 
 	return SaveStructure(rt)
 }

@@ -36,6 +36,10 @@
             {# failed #}
             <li><a href="/{% if task.IsActive %}live_status{% else %}status{% endif %}/{{task.Id}}">{{task.LogName}}</a> <span class="label label-danger">Failed</span></li>
 
+            {% elif task.Status == 3 %}
+            {# aborted #}
+            <li><a href="/{% if task.IsActive %}live_status{% else %}status{% endif %}/{{task.Id}}">{{task.LogName}}</a> <span class="label label-danger">Aborted</span></li>
+
             {% endif %}
 
             {% endfor %}

@@ -16,6 +16,10 @@
         {# failed #}
         <span class="label label-danger">Failed</span>
 
+        {% elif task.Status == 3 %}
+        {# aborted #}
+        <span class="label label-danger">Aborted</span>
+
         {% endif %}
     </div>
 </div>
