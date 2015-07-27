@@ -2,24 +2,42 @@
 
 {% block content %}
 <div class="row">
-    {% if config_sets_ctx.IsRemote %}
-    {{ config_sets_ctx.Repo.Revision }}
-    {% endif %}
-    <a href="/update_proc_config_sets">Update</a>
-
     <div class="col-xs-12">
-        {% for name, config_set in config_sets_ctx.Map %}
-        - {{ name }}<br>
-        {% for version, config in config_set.VersionedConfigs %}
-        <a href="/build/{{ name | urlencode}}/{{ version | urlencode}}">build {{ name }} {{ version }}</a><br>
-        <a href="/queue/{{ name | urlencode}}/{{ version | urlencode}}">queue {{ name }} {{ version }}</a><br>
-        {% endfor %}
-        {% endfor %}
+        {% if config_sets_ctx.IsRemote %}
+        Revision: {{ config_sets_ctx.Repo.Revision }}<br>
+        {% endif %}
+        <a href="/update_proc_config_sets">Update ProcConfigSets</a>
     </div>
 </div>
 
 <div class="row">
-    <div class="col-xs-12">
+    <div class="col-xs-3">
+        <h1>Proc</h1>
+        <ul>
+        {% for config_set in config_sets_ctx.SortedConfigSets() %}
+            <li>{{ config_set.Name }}</li>
+            <ul>
+                {% for c in config_set.SortedConfigs() %}
+                <li>{{ c.version }} <strong><a href="/queue/{{ c.name | urlencode}}/{{ c.version | urlencode}}">to_queue</a></strong> <a href="/build/{{ c.name | urlencode}}/{{ c.version | urlencode}}">exec</a></li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+        </ul>
+    </div>
+
+    <div class="col-xs-3">
+        <h1>Queue</h1>
+        <ul>
+            {% for q in queued_tasks %}
+
+            <li>Waiting: {{ q.proc.name }} {{ q.proc.version }}</li>
+
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="col-xs-6">
+        <h1>Tasks</h1>
         <ul>
             {% for task in tasks %}
 
@@ -41,18 +59,6 @@
             <li><a href="/{% if task.IsActive %}live_status{% else %}status{% endif %}/{{task.Id}}">{{task.LogName}}</a> <span class="label label-danger">Aborted</span></li>
 
             {% endif %}
-
-            {% endfor %}
-        </ul>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-xs-12">
-        <ul>
-            {% for q in queued_tasks %}
-
-            <li>Wailing: {{ q.proc.name }} {{ q.proc.version }}</li>
 
             {% endfor %}
         </ul>

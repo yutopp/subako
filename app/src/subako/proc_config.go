@@ -7,6 +7,7 @@ import (
 	"sync"
 	"errors"
 	"bytes"
+	"sort"
 
 	"encoding/json"
 	"gopkg.in/yaml.v2"
@@ -298,6 +299,22 @@ type ProcConfigSet struct {
 	ProfileTemplate		*ProfileTemplate
 	ProfilePatches		[]*ProfilePatch
 }
+
+func (pc *ProcConfigSet) SortedConfigs() []*ProcConfig {
+	var keys []string
+    for k := range pc.VersionedConfigs {
+        keys = append(keys, k)
+    }
+    sort.Strings(keys)
+
+	var confs []*ProcConfig
+	for _, version := range keys {
+		confs = append(confs, pc.VersionedConfigs[version])
+	}
+
+	return confs
+}
+
 
 func makeProcConfigSet(baseDir targetPath) (*ProcConfigSet, error) {
 	configPath := path.Join(string(baseDir), "config.json")
@@ -608,4 +625,20 @@ func (ctx *ProcConfigSetsContext) Update() error {
 	}
 
 	return nil
+}
+
+
+func (ctx *ProcConfigSetsContext) SortedConfigSets() []*ProcConfigSet {
+	var keys []string
+    for k := range ctx.Map {
+        keys = append(keys, k)
+    }
+    sort.Strings(keys)
+
+	var sets []*ProcConfigSet
+	for _, name := range keys {
+		sets = append(sets, ctx.Map[name])
+	}
+
+	return sets
 }
