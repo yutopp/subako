@@ -33,37 +33,70 @@ func readProfileTemplate(
 ) (*ProfileTemplate, error) {
 	buf, err := ioutil.ReadFile(filePath)
     if err != nil {
-        fmt.Printf("File error: %v\n", err)
-        os.Exit(1)
+        return nil, err
     }
 
 	var pt ProfileTemplate
 	if err := yaml.Unmarshal(buf, &pt); err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	fmt.Println("PT", pt)
+	if err := validateExecProfileTemplate(pt.Compile); err != nil {
+		return nil, fmt.Errorf("Compile section: %v", err)
+	}
+	if err := validateExecProfileTemplate(pt.Link); err != nil {
+		return nil, fmt.Errorf("Link section: %v", err)
+	}
+
+	if pt.Run == nil {
+		return nil, errors.New("must contain 'run' section")
+	}
+	if err := validateExecProfileTemplate(pt.Run); err != nil {
+		return nil, fmt.Errorf("Run section: %v", err)
+	}
+
+	log.Println("ProfileTemplate => ", pt)
 
 	return &pt, nil
 }
 
+func validateExecProfileTemplate(pt *ExecProfileTemplate) error {
+	if pt == nil {
+		return nil
+	}
+
+	if pt.Commands == nil || len(pt.Commands) == 0 {
+		return errors.New("must contain 'commands' element")
+	}
+
+	if pt.CpuLimit == 0 {
+		return errors.New("must contain 'cpu_limit' element and must not be 0")
+	}
+
+	if pt.MemoryLimit == 0 {
+		return errors.New("must contain 'memory_limit' element and must not be 0")
+	}
+
+	return nil
+}
+
+
 func readProfilePatch(
 	filePath string,
 ) (*ProfilePatch, error) {
-	fmt.Println("patch F=> ",filePath)
+	log.Printf("patch filepath: %s",filePath)
 
 	buf, err := ioutil.ReadFile(filePath)
     if err != nil {
-        fmt.Printf("File error: %v\n", err)
-        os.Exit(1)
+        return nil, err
     }
 
 	var pt ProfilePatch
 	if err := yaml.Unmarshal(buf, &pt); err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	fmt.Println("patch", pt)
+	log.Println("ProfilePatch => ", pt)
 
 	return &pt, nil
 }
@@ -199,11 +232,13 @@ func transformStringArrayMap(gen map[string][]string, f func(string) string) map
 }
 
 type ExecProfileTemplate struct {
-	Extension			string					`yaml:"extension,omitempty"				json:"extention"`
-	Commands			[]string				`yaml:"commands"						json:"commands"`
-	Envs				map[string]string		`yaml:"envs,omitempty"					json:"envs"`
-	FixedCommands		[][]string				`yaml:"fixed_commands,omitempty"		json:"fixed_commands"`
-	SelectableCommands	map[string][]string		`yaml:"selectable_commands,omitempty"	json:"selectable_commands"`
+	Extension			string					`yaml:"extension,omitempty" json:"extention"`
+	Commands			[]string				`yaml:"commands" json:"commands"`
+	Envs				map[string]string		`yaml:"envs,omitempty" json:"envs"`
+	FixedCommands		[][]string				`yaml:"fixed_commands,omitempty" json:"fixed_commands"`
+	SelectableOptions	map[string][]string		`yaml:"selectable_options,omitempty" json:"selectable_options"`
+	CpuLimit			uint64					`yaml:"cpu_limit" json:"cpu_limit"`
+	MemoryLimit			uint64					`yaml:"memory_limit,omitempty" json:"memory_limit"`
 }
 
 func (ept *ExecProfileTemplate) String() string {
@@ -213,7 +248,7 @@ func (ept *ExecProfileTemplate) String() string {
 		fmt.Sprintf("Commands: %s / ", ept.Commands) +
 		fmt.Sprintf("Envs: %s / ", ept.Envs) +
 		fmt.Sprintf("FixedCommands: %s / ", ept.FixedCommands) +
-		fmt.Sprintf("SelectableCommands: %s)", ept.SelectableCommands)
+		fmt.Sprintf("SelectableCommands: %s)", ept.SelectableOptions)
 }
 
 type ProfileTemplate struct {
@@ -252,7 +287,10 @@ func setExecProfile(
 	execProfile.Commands = transformStringArray(src.Commands, ap.ReplaceString)
 	execProfile.Envs = transformStringMap(src.Envs, ap.ReplaceString)
 	execProfile.FixedCommands = transformStringNestedArray(src.FixedCommands, ap.ReplaceString)
-	execProfile.SelectableCommands = transformStringArrayMap(src.SelectableCommands, ap.ReplaceString)
+	execProfile.SelectableOptions = transformStringArrayMap(src.SelectableOptions, ap.ReplaceString)
+
+	execProfile.CpuLimit = src.CpuLimit
+	execProfile.MemoryLimit = src.MemoryLimit
 
 	return &execProfile
 }
@@ -277,9 +315,9 @@ func appendExecProfile(
 		base.FixedCommands,
 		transformStringNestedArray(src.FixedCommands, ap.ReplaceString)...
 	)
-	execProfile.SelectableCommands = appendStringArrayMap(
-		base.SelectableCommands,
-		transformStringArrayMap(src.SelectableCommands, ap.ReplaceString),
+	execProfile.SelectableOptions = appendStringArrayMap(
+		base.SelectableOptions,
+		transformStringArrayMap(src.SelectableOptions, ap.ReplaceString),
 	)
 
 	return &execProfile
@@ -368,7 +406,7 @@ func makeProcConfigSet(baseDir targetPath) (*ProcConfigSet, error) {
 	if Exists(ptPath) {
 		pt, err := readProfileTemplate(ptPath)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%v at %s", err, ptPath)
 		}
 		profileTemplate = pt
 	}
@@ -390,7 +428,7 @@ func makeProcConfigSet(baseDir targetPath) (*ProcConfigSet, error) {
 		if strings.HasPrefix(filepath.Base(path), "patch_") {
 			pt, err := readProfilePatch(path)
 			if err != nil {
-				return err
+				return fmt.Errorf("%v at %s", err, path)
 			}
 			patches = append(patches, pt)
 			return nil
