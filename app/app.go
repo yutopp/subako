@@ -222,7 +222,7 @@ func liveStatus(c web.C, w http.ResponseWriter, r *http.Request) {
 	// if task has been already finished, move to static status page
 	if !runningTask.IsActive() {
 		url := fmt.Sprintf("/status/%d", runningTask.Id)
-		http.Redirect(w, r, url, http.StatusMovedPermanently)
+		http.Redirect(w, r, url, http.StatusFound)
 		return
 	}
 
