@@ -68,6 +68,9 @@ type BuildResult struct {
 	PkgName			string	`json:"pkg_name"`
 	PkgVersion		string	`json:"pkg_version"`
 	DisplayVersion	string	`json:"display_version"`
+
+	hostInstallBase		string
+	hostInstallPrefix	string
 }
 
 func (ctx *BuilderContext) build(
@@ -79,7 +82,7 @@ func (ctx *BuilderContext) build(
 	const inContainerCurPkgConfigsDir = "/etc/current_pkgconfig/"
 
 	const inContainerWorkDir = "/root/"
-	const inContainerTorigoyaDir = "/usr/local/torigoya/"
+	const inContainerTorigoyaDir = "/usr/local/torigoya/"	// same as host path
 
 	const inContainerBuiltPkgsDir = "/etc/torigoya_pkgs"
 
@@ -131,7 +134,7 @@ func (ctx *BuilderContext) build(
 		Force: true,
 	})
 
-	log.Printf("Attach Container\n")
+	log.Printf("Attach Container => %s\n", container.ID)
 	attachOpt := docker.AttachToContainerOptions{
 		Container: container.ID,
 		OutputStream: writePipe,
@@ -178,7 +181,7 @@ func (ctx *BuilderContext) build(
 	file, err := ioutil.ReadFile(filepath.Join(ctx.packagesDir, resultJsonName))
     if err != nil {
         log.Printf("JSON read error: %v\n", err)
-        return nil, errors.New(fmt.Sprintf("failed to read result %s", resultJsonName))
+        return nil, fmt.Errorf("failed to read result %s", resultJsonName)
     }
 
 	var br BuildResult
@@ -186,6 +189,8 @@ func (ctx *BuilderContext) build(
 		log.Printf("File error: %v\n", err)
         return nil, err
 	}
+	br.hostInstallBase = inContainerTorigoyaDir			//
+	br.hostInstallPrefix = inContainerInstalledPath		//
 
 	log.Println("BUILD RESULT", br)
 

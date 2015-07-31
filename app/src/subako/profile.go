@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"fmt"
 )
 
 
@@ -20,14 +21,44 @@ type Profile struct {
 	Run					*ExecProfile	`json:"run"`
 }
 
+func (p *Profile) Log() {
+	log.Printf(" Name = %s\n", p.Name)
+	log.Printf(" Version = %s\n", p.Version)
+	log.Printf(" DisplayVersion = %s\n", p.DisplayVersion)
+	log.Printf(" IsBuildRequired = %s\n", p.IsBuildRequired)
+	log.Printf(" IsLinkIndependent = %s\n", p.IsLinkIndependent)
+	if p.Compile != nil {
+		log.Println(" Compile")
+		p.Compile.Log()
+	}
+	if p.Link != nil {
+		log.Println(" Link")
+		p.Link.Log()
+	}
+	if p.Run != nil {
+		log.Println(" Run")
+		p.Run.Log()
+	}
+}
+
+func (e *ExecProfile) Log() {
+	log.Printf("  - Extension = %s\n", e.Extension)
+	log.Printf("  - Commands = %s\n", e.Commands)
+	log.Printf("  - Envs = %s\n", e.Envs)
+	log.Printf("  - FixedCommands = %s\n", e.FixedCommands)
+	log.Printf("  - SelectableOptions = %s\n", e.SelectableOptions)
+	log.Printf("  - CpuLimit = %s\n", e.CpuLimit)
+	log.Printf("  - MemoryLimit = %s\n", e.MemoryLimit)
+}
+
 
 type GenericTemplate struct {
 	Template	IProfileTemplate
 	Ref			AvailablePackage
 }
 
-func (h *GenericTemplate) Update(p *Profile) {
-	h.Template.Generate(p, &h.Ref)
+func (h *GenericTemplate) Update(p *Profile) error {
+	return h.Template.Generate(p, &h.Ref)
 }
 
 type propVerMap map[string][]GenericTemplate	// map[version]IProfileTemplate
@@ -71,19 +102,18 @@ func (ph *ProfilesHolder) GenerateProcProfiles(
 	ap	*AvailablePackages,
 	pc	ProcConfigMap,
 ) error {
-
 	targetProfileTemplates := make(propMap)
 
 	// collect normal profile from available packages
 	for name, apPkgs := range ap.Packages {
 		procConfig, ok := pc[name]
 		if !ok {
-			return errors.New("")		// TODO: fix
+			return fmt.Errorf("")		// TODO: fix
 		}
 		targetProfileTemplates[name] = make(propVerMap)
 
 		for version, apPkg := range apPkgs {
-			log.Printf("Gen %s %s\n", name, version)
+			log.Printf("Template %s %s\n", name, version)
 			targetProfileTemplates[name][version] = []GenericTemplate{
 				GenericTemplate{
 					Template: procConfig.ProfileTemplate,
@@ -114,6 +144,7 @@ func (ph *ProfilesHolder) GenerateProcProfiles(
 				//
 				for _, toVersion := range to.Versions {
 					if !targetProfileTemplates.has(to.Name, toVersion) {
+						// there are no targets, ignore
 						continue
 					}
 
@@ -128,7 +159,7 @@ func (ph *ProfilesHolder) GenerateProcProfiles(
 				}
 			}
 
-			log.Printf("PATCH %v\n", patch)
+			log.Printf("Template Patch %v\n", patch)
 		}
 	}
 
@@ -141,12 +172,17 @@ func (ph *ProfilesHolder) GenerateProcProfiles(
 				Version: version,
 			}
 
-			log.Printf("GENGEN %s %s\n", name, version)
+			log.Printf("Generate %s %s\n", name, version)
 			for _, gen := range gens {
-				gen.Update(&prof)
+				if err := gen.Update(&prof); err != nil {
+					log.Printf("Error: %v", err)
+					return err
+				}
 			}
 
-			log.Println("GENERATED PROF", prof)
+			prof.Log()
+			log.Println("=====")
+
 			profiles = append(profiles, prof)
 		}
 	}

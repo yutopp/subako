@@ -42,7 +42,7 @@ func (ctx *NotificationContext) PostUpdate(message interface{}) error {
 	mac := hmac.New(sha1.New, []byte(ctx.Secret))
 	mac.Write([]byte(payload))
 	generatedMAC := hex.EncodeToString(mac.Sum(nil))
-	log.Printf("generated MAC => %s\n", generatedMAC)
+	log.Printf("Generated MAC => %s\n", generatedMAC)
 
 	// make request
 	req, err := http.NewRequest(
@@ -60,7 +60,7 @@ func (ctx *NotificationContext) PostUpdate(message interface{}) error {
     if err != nil { return err }
     defer resp.Body.Close()
 
-	log.Println("sent")
+	log.Println("Notification has been sent!")
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil { return err }

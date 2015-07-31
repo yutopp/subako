@@ -201,7 +201,8 @@ func (ctx *SubakoContext) Build(
 		PackageName: result.PkgName,
 		PackageVersion: result.PkgVersion,
 		DisplayVersion: result.DisplayVersion,
-		InstallBase: "/usr/local/torigoya",		// TODO: fix
+		InstallBase: result.hostInstallBase,
+		InstallPrefix: result.hostInstallPrefix,
 	}); err != nil {
 		task.ErrorText = err.Error()
 		task.Status = TaskFailed

@@ -6,6 +6,7 @@ import (
 	"time"
 	"io/ioutil"
 	"log"
+	"fmt"
 	"sync"
 )
 
@@ -18,18 +19,31 @@ type AvailablePackage struct {
 	DisplayVersion		string
 
 	InstallBase			string
+	InstallPrefix		string
 }
 
-func (ap *AvailablePackage) ReplaceString(s string) string {
-	re1 := regexp.MustCompile("%{install_base}")
-	re2 := regexp.MustCompile("%{version}")
-	re3 := regexp.MustCompile("%{display_version}")
+var (
+	reInstallBase = regexp.MustCompile("%{install_base}")
+	reInstallPrefix = regexp.MustCompile("%{install_prefix}")
+	reVersion = regexp.MustCompile("%{version}")
+	reDisplayVersion = regexp.MustCompile("%{display_version}")
 
-	s1 := re1.ReplaceAllString(s, ap.InstallBase)
-	s2 := re2.ReplaceAllString(s1, ap.Version)
-	s3 := re3.ReplaceAllString(s2, ap.DisplayVersion)
+	reUndef = regexp.MustCompile("%{.*}")
+)
 
-	return s3
+func (ap *AvailablePackage) ReplaceString(s string) (string, error) {
+	s = reInstallBase.ReplaceAllString(s, ap.InstallBase)
+	s = reInstallPrefix.ReplaceAllString(s, ap.InstallPrefix)
+
+	s = reVersion.ReplaceAllString(s, ap.Version)
+	s = reDisplayVersion.ReplaceAllString(s, ap.DisplayVersion)
+
+	//
+	if fs := reUndef.FindString(s); fs != "" {
+		return "", fmt.Errorf("Unknown placeholder %s is found in template", fs)
+	}
+
+	return s, nil
 }
 
 

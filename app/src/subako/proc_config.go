@@ -127,7 +127,7 @@ func (tc *ProcConfig) makePackagePathName() string {
 
 
 type IProfileTemplate interface {
-	Generate(*Profile, *AvailablePackage)
+	Generate(*Profile, *AvailablePackage) error
 }
 
 
@@ -191,44 +191,70 @@ func appendStringArrayMap(recv, inj map[string][]string) map[string][]string {
 func (patch *ProfilePatch) Generate(
 	profile *Profile,
 	ap *AvailablePackage,
-) {
+) (err error) {
 	log.Printf("GENERATE by %s %s\n", ap.PackageName, ap.Version)
 
-	profile.Compile = appendExecProfile(ap, profile.Compile, patch.Append.Compile)
-	profile.Link = appendExecProfile(ap, profile.Link, patch.Append.Link)
-	profile.Run = appendExecProfile(ap, profile.Run, patch.Append.Run)
+	profile.Compile, err = appendExecProfile(ap, profile.Compile, patch.Append.Compile)
+	if err != nil { return err }
+
+	profile.Link, err = appendExecProfile(ap, profile.Link, patch.Append.Link)
+	if err != nil { return }
+
+	profile.Run, err = appendExecProfile(ap, profile.Run, patch.Append.Run)
+	if err != nil { return }
+
+	return
 }
 
-func transformStringArray(gen []string, f func(string) string) []string {
+
+type transF func(string) (string, error)
+
+func transformStringArray(gen []string, f transF) ([]string, error) {
 	result := make([]string, len(gen))
+	var err error
+
 	for i, v := range gen {
-		result[i] = f(v)
+		result[i], err = f(v)
+		if err != nil { return nil, err }
 	}
-	return result
+
+	return result, nil
 }
 
-func transformStringNestedArray(gen [][]string, f func(string) string) [][]string {
+func transformStringNestedArray(gen [][]string, f transF) ([][]string, error) {
 	result := make([][]string, len(gen))
+	var err error
+
 	for i, v := range gen {
-		result[i] = transformStringArray(v, f)
+		result[i], err = transformStringArray(v, f)
+		if err != nil { return nil, err }
 	}
-	return result
+
+	return result, nil
 }
 
-func transformStringMap(gen map[string]string, f func(string) string) map[string]string {
+func transformStringMap(gen map[string]string, f transF) (map[string]string, error) {
 	result := make(map[string]string)
+	var err error
+
 	for k, v := range gen {
-		result[k] = f(v)
+		result[k], err = f(v)
+		if err != nil { return nil, err }
 	}
-	return result
+
+	return result, nil
 }
 
-func transformStringArrayMap(gen map[string][]string, f func(string) string) map[string][]string {
+func transformStringArrayMap(gen map[string][]string, f transF) (map[string][]string, error) {
 	result := make(map[string][]string)
+	var err error
+
 	for k, v := range gen {
-		result[k] = transformStringArray(v, f)
+		result[k], err = transformStringArray(v, f)
+		if err != nil { return nil, err }
 	}
-	return result
+
+	return result, nil
 }
 
 type ExecProfileTemplate struct {
@@ -264,63 +290,80 @@ type ProfileTemplate struct {
 func (template *ProfileTemplate) Generate(
 	profile *Profile,
 	ap *AvailablePackage,
-) {
+) (err error) {
 	log.Printf("GENERATE by %s %s\n", ap.PackageName, ap.Version)
 
-	profile.DisplayVersion = ap.ReplaceString(template.DisplayVersion)
+	profile.DisplayVersion, err = ap.ReplaceString(template.DisplayVersion)
+	if err != nil { return err }
 	profile.IsBuildRequired = template.IsBuildRequired
 	profile.IsLinkIndependent = template.IsLinkIndependent
 
-	profile.Compile = setExecProfile(ap, template.Compile)
-	profile.Link = setExecProfile(ap, template.Link)
-	profile.Run = setExecProfile(ap, template.Run)
+	profile.Compile, err = setExecProfile(ap, template.Compile)
+	if err != nil { return }
+	profile.Link, err = setExecProfile(ap, template.Link)
+	if err != nil { return }
+	profile.Run, err = setExecProfile(ap, template.Run)
+	if err != nil { return }
+
+	return
 }
 
 func setExecProfile(
 	ap *AvailablePackage,
 	src *ExecProfileTemplate,
-) *ExecProfile {
-	if src == nil { return nil }
+) (prof *ExecProfile, err error) {
+	if src == nil { return nil, nil }
 
-	var execProfile ExecProfile
-	execProfile.Extension = ap.ReplaceString(src.Extension)
-	execProfile.Commands = transformStringArray(src.Commands, ap.ReplaceString)
-	execProfile.Envs = transformStringMap(src.Envs, ap.ReplaceString)
-	execProfile.FixedCommands = transformStringNestedArray(src.FixedCommands, ap.ReplaceString)
-	execProfile.SelectableOptions = transformStringArrayMap(src.SelectableOptions, ap.ReplaceString)
+	prof = &ExecProfile{}
 
-	execProfile.CpuLimit = src.CpuLimit
-	execProfile.MemoryLimit = src.MemoryLimit
+	prof.Extension, err = ap.ReplaceString(src.Extension)
+	if err != nil { return }
 
-	return &execProfile
+	prof.Commands, err = transformStringArray(src.Commands, ap.ReplaceString)
+	if err != nil { return }
+
+	prof.Envs, err = transformStringMap(src.Envs, ap.ReplaceString)
+	if err != nil { return }
+
+	prof.FixedCommands, err = transformStringNestedArray(src.FixedCommands, ap.ReplaceString)
+	if err != nil { return }
+
+	prof.SelectableOptions, err = transformStringArrayMap(src.SelectableOptions, ap.ReplaceString)
+	if err != nil { return }
+
+	prof.CpuLimit = src.CpuLimit
+	prof.MemoryLimit = src.MemoryLimit
+
+	return
 }
 
 func appendExecProfile(
 	ap *AvailablePackage,
 	base *ExecProfile,
 	src *ExecProfileTemplate,
-) *ExecProfile {
-	if src == nil { return nil }
+) (prof *ExecProfile, err error) {
+	if src == nil { return }
 
 	var execProfile ExecProfile = *base
-	execProfile.Commands = append(
-		base.Commands,
-		transformStringArray(src.Commands, ap.ReplaceString)...
-	)
-	execProfile.Envs = appendStringMap(
-		base.Envs,
-		transformStringMap(src.Envs, ap.ReplaceString),
-	)
-	execProfile.FixedCommands = append(
-		base.FixedCommands,
-		transformStringNestedArray(src.FixedCommands, ap.ReplaceString)...
-	)
-	execProfile.SelectableOptions = appendStringArrayMap(
-		base.SelectableOptions,
-		transformStringArrayMap(src.SelectableOptions, ap.ReplaceString),
-	)
+	prof = &execProfile
 
-	return &execProfile
+	commands, err := transformStringArray(src.Commands, ap.ReplaceString)
+	if err != nil { return }
+	prof.Commands = append(base.Commands, commands...)
+
+	envs, err := transformStringMap(src.Envs, ap.ReplaceString)
+	if err != nil { return }
+	prof.Envs = appendStringMap(base.Envs, envs)
+
+	fixedCommands, err := transformStringNestedArray(src.FixedCommands, ap.ReplaceString)
+	if err != nil { return }
+	prof.FixedCommands = append(base.FixedCommands, fixedCommands...)
+
+	options, err := transformStringArrayMap(src.SelectableOptions, ap.ReplaceString)
+	if err != nil { return }
+	prof.SelectableOptions = appendStringArrayMap(base.SelectableOptions, options)
+
+	return
 }
 
 
