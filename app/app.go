@@ -219,13 +219,6 @@ func liveStatus(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// if task has been already finished, move to static status page
-	if !runningTask.IsActive() {
-		url := fmt.Sprintf("/status/%d", runningTask.Id)
-		http.Redirect(w, r, url, http.StatusFound)
-		return
-	}
-
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")		// important
 
