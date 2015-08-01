@@ -4,6 +4,7 @@ Package building system for Torigoya.
 # Requirement
 - golang >= 1.3
 - docker >= 1.2
+- reprepro
 - npm
 - bower
 
@@ -17,7 +18,7 @@ See `config.yml.template`
 ```
 sudo apt-get install software-properties-common
 sudo apt-get update
-sudo apt-get install nodejs npm
+sudo apt-get install nodejs npm reprepro
 sudo ln -s /usr/bin/node /usr/local/bin/node
 ```
 
