@@ -48,6 +48,10 @@ type userConfig struct {
 		User		string
 		Password	string
 	}
+	Builder			*struct {
+		PackagePrefix		string	`yaml:"package_prefix"`
+		InstallBasePrefix	string	`yaml:"install_base_prefix"`
+	}
 	ConfigSets		struct {
 		Remote		bool
 		Path		string
@@ -81,6 +85,11 @@ func main() {
 	log.Printf("Cron Timing: %d:%d", uConfig.Cron.Hour, uConfig.Cron.Minute)
 	log.Printf("ConfigSets IsRemote: %v", uConfig.ConfigSets.Remote)
 	log.Printf("ConfigSets Path: %s", uConfig.ConfigSets.Path)
+	if uConfig.Builder == nil {
+		log.Fatal("builder section is not written in config")
+	}
+	log.Printf("PackagePrefix: %s", uConfig.Builder.PackagePrefix)
+	log.Printf("InstallPrefix: %s", uConfig.Builder.InstallBasePrefix)
 	if uConfig.ConfigSets.Remote {
 		log.Printf("ConfigSets Repository: %s", uConfig.ConfigSets.Repository)
 	}
@@ -115,9 +124,13 @@ func main() {
 		}(),
 		AvailablePackagesPath: path.Join(storageDir, "available_packages.json"),
 		AptRepositoryBaseDir: path.Join(storageDir, "apt_repository"),
+
 		VirtualUsrDir: path.Join(storageDir, "torigoya_usr"),
 		TmpBaseDir: path.Join(storageDir, "temp"),
 		PackagesDir: path.Join(storageDir, "packages"),
+		PackagePrefix: uConfig.Builder.PackagePrefix,
+		InstallBasePrefix: uConfig.Builder.InstallBasePrefix,
+
 		RunningTasksPath: path.Join(storageDir, "running_tasks.json"),
 		ProfilesHolderPath: path.Join(storageDir, "proc_profiles.json"),
 		DataBasePath: path.Join(storageDir, "db.sqlite"),

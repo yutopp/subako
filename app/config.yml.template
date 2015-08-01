@@ -9,6 +9,10 @@ cron:
   hour: 2
   minute: 50
 
+builder:
+  package_prefix: "procgarden-"
+  install_base_prefix: "/usr/local/procgarden"
+
 auth:
   user: "testuser"
   password: "test"

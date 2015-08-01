@@ -18,9 +18,13 @@ type SubakoConfig struct {
 	ProcConfigSetsConf		*ProcConfigSetsConfig
 	AvailablePackagesPath	string
 	AptRepositoryBaseDir	string
+
 	VirtualUsrDir			string
 	TmpBaseDir				string
 	PackagesDir				string
+	PackagePrefix			string
+	InstallBasePrefix		string
+
 	RunningTasksPath		string
 	ProfilesHolderPath		string
 	DataBasePath			string
@@ -61,13 +65,15 @@ func MakeSubakoContext(config *SubakoConfig) (*SubakoContext, error) {
 	}
 
 	// Builder
-	builderCtx, err := MakeBuilderContext(
-		config.VirtualUsrDir,
-		config.TmpBaseDir,
-		config.PackagesDir,
-	)
+	builderCtx, err := MakeBuilderContext(&BuilderConfig{
+		virtualUsrDir: config.VirtualUsrDir,
+		tmpBaseDir: config.TmpBaseDir,
+		packagesDir: config.PackagesDir,
+		packagePrefix: config.PackagePrefix,
+		installBasePrefix: config.InstallBasePrefix,
+	})
 	if err != nil {
-		panic("error")
+		panic(err)
 	}
 
 	// Config Sets

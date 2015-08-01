@@ -18,47 +18,56 @@ import (
 const endpoint = "unix:///var/run/docker.sock"
 
 
-type BuilderContext struct {
-	client			*docker.Client
-
-	virtualUsrDir	string
-	tmpBaseDir		string
-	packagesDir		string
+type BuilderConfig struct {
+	virtualUsrDir		string
+	tmpBaseDir			string
+	packagesDir			string
+	packagePrefix		string
+	installBasePrefix	string
 }
 
-func MakeBuilderContext(
-	virtualUsrDir	string,
-	tmpBaseDir		string,
-	packagesDir		string,
-) (*BuilderContext, error) {
+
+type BuilderContext struct {
+	client				*docker.Client
+
+	virtualUsrDir		string
+	tmpBaseDir			string
+	packagesDir			string
+	packagePrefix		string
+	installBasePrefix	string
+}
+
+func MakeBuilderContext(config *BuilderConfig) (*BuilderContext, error) {
 	client, err := docker.NewClient(endpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	if !Exists(virtualUsrDir) {
-		if err := os.Mkdir(virtualUsrDir, 0755); err != nil {
+	if !Exists(config.virtualUsrDir) {
+		if err := os.Mkdir(config.virtualUsrDir, 0755); err != nil {
 			return nil, err
 		}
 	}
 
-	if !Exists(tmpBaseDir) {
-		if err := os.Mkdir(tmpBaseDir, 0755); err != nil {
+	if !Exists(config.tmpBaseDir) {
+		if err := os.Mkdir(config.tmpBaseDir, 0755); err != nil {
 			return nil, err
 		}
 	}
 
-	if !Exists(packagesDir) {
-		if err := os.Mkdir(packagesDir, 0755); err != nil {
+	if !Exists(config.packagesDir) {
+		if err := os.Mkdir(config.packagesDir, 0755); err != nil {
 			return nil, err
 		}
 	}
 
 	return &BuilderContext{
 		client: client,
-		virtualUsrDir: virtualUsrDir,
-		tmpBaseDir: tmpBaseDir,
-		packagesDir: packagesDir,
+		virtualUsrDir: config.virtualUsrDir,
+		tmpBaseDir: config.tmpBaseDir,
+		packagesDir: config.packagesDir,
+		packagePrefix: config.packagePrefix,
+		installBasePrefix: config.installBasePrefix,
 	}, nil
 }
 
@@ -82,8 +91,6 @@ func (ctx *BuilderContext) build(
 	const inContainerCurPkgConfigsDir = "/etc/current_pkgconfig/"
 
 	const inContainerWorkDir = "/root/"
-	const inContainerTorigoyaDir = "/usr/local/torigoya/"	// same as host path
-
 	const inContainerBuiltPkgsDir = "/etc/torigoya_pkgs"
 
 	//
@@ -94,7 +101,7 @@ func (ctx *BuilderContext) build(
 	}
 
 	inContainerInstalledPath :=
-		path.Join(inContainerTorigoyaDir, procConfig.makePackagePathName())
+		path.Join(ctx.installBasePrefix, procConfig.makePackagePathName())
 	inContainerInstallScriptPath :=
 		path.Join(inContainerCurPkgConfigsDir, "install.sh")
 
@@ -115,10 +122,10 @@ func (ctx *BuilderContext) build(
 				"TR_PACKAGE_NAME=" + procConfig.name,
 				"TR_TARGET_SYSTEM=" + procConfig.targetSystem,
 				"TR_TARGET_ARCH=" + procConfig.targetArch,
-				"TR_INSTALL_PATH=" + inContainerTorigoyaDir,
+				"TR_INSTALL_PATH=" + ctx.installBasePrefix,
 				"TR_PKGS_PATH=" + inContainerBuiltPkgsDir,
 				"TR_CPU_CORE=1",
-				"TR_PACKAGE_PREFIX=torigoya-",
+				"TR_PACKAGE_PREFIX=" + ctx.packagePrefix,
 			},
 			Cmd: []string{"bash", inContainerInstallScriptPath},
 		},
@@ -156,7 +163,7 @@ func (ctx *BuilderContext) build(
 			procConfigSetsDir + ":" + inContainerPkgConfigsDir + ":ro",		// readonly
 			procConfig.basePath + ":" + inContainerCurPkgConfigsDir + ":ro",// readonly
 			workDir + ":" + inContainerWorkDir,
-			ctx.virtualUsrDir + ":" + inContainerTorigoyaDir,
+			ctx.virtualUsrDir + ":" + ctx.installBasePrefix + "ro",			// readonly, user can user compilers from ctx.virtualUsrDir
 			ctx.packagesDir + ":" + inContainerBuiltPkgsDir,
 		},
 	}
@@ -189,7 +196,7 @@ func (ctx *BuilderContext) build(
 		log.Printf("File error: %v\n", err)
         return nil, err
 	}
-	br.hostInstallBase = inContainerTorigoyaDir			//
+	br.hostInstallBase = ctx.installBasePrefix			//
 	br.hostInstallPrefix = inContainerInstalledPath		//
 
 	log.Println("BUILD RESULT", br)
