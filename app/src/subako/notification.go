@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"bytes"
 	"errors"
+	"time"
 	"io/ioutil"
 	"encoding/json"
 	"crypto/hmac"
@@ -55,7 +56,9 @@ func (ctx *NotificationContext) PostUpdate(message interface{}) error {
 	req.Header.Set("X-Torigoya-Factory-Signature", generatedMAC)
 
 	// send!
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: time.Duration(4) * time.Second,
+	}
     resp, err := client.Do(req)
     if err != nil { return err }
     defer resp.Body.Close()
