@@ -25,3 +25,6 @@ config_sets:
 #  remote: True
 #  path: "../proc_configs_repo"
 #  repository: "https://github.com/yutopp/torigoya_package_configs.git"
+#  webhook_secret: "secret"     # set, if you needs
+                                # when you set this, the hook end point will be
+                                # /webhooks/fire/__configs

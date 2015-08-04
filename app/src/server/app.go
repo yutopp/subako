@@ -31,6 +31,7 @@ import (
 )
 
 var gSubakoCtx *subako.SubakoContext
+const packageConfigsHookName = "__configs"
 
 type userConfig struct {
 	Server			struct {
@@ -56,6 +57,7 @@ type userConfig struct {
 		Remote		bool
 		Path		string
 		Repository	string
+		RepoSecret	string	`yaml:"webhook_secret"`
 	} `yaml:"config_sets"`
 }
 
@@ -92,6 +94,7 @@ func main() {
 	log.Printf("InstallPrefix: %s", uConfig.Builder.InstallBasePrefix)
 	if uConfig.ConfigSets.Remote {
 		log.Printf("ConfigSets Repository: %s", uConfig.ConfigSets.Repository)
+		log.Printf("ConfigSets RepoSecret: %s", uConfig.ConfigSets.RepoSecret)
 	}
 
 	// port
@@ -155,6 +158,27 @@ func main() {
 		}
 	}()
 
+	// add hooks for '__configs' (*special usage*)
+	func() {
+		if packageConfigsHookName == "" { return }	// skip
+
+		dummy_hook := &subako.Webhook{
+			Target: packageConfigsHookName,
+			ProcName: "*For config update*",
+		}
+		hook, err := subakoCtx.Webhooks.GetByTargetOrCreate(packageConfigsHookName, dummy_hook)
+		if err != nil {
+			panic(err)
+		}
+		log.Println(hook)
+
+		hook.Secret = uConfig.ConfigSets.RepoSecret
+		if err := subakoCtx.Webhooks.Update(hook.ID, hook); err != nil {
+			panic(err)
+		}
+	}()
+
+	//
 	gSubakoCtx = subakoCtx
 
 	//
@@ -183,10 +207,10 @@ func main() {
 	goji.Get("/packages", showPackages)
 
 	reqAuthMux.Get("/webhooks", webhooks)
-	goji.Post("/webhooks/:name", webhookEvent)
 	reqAuthMux.Post("/webhooks/append", webhooksAppend)
 	reqAuthMux.Post("/webhooks/update/:id", webhooksUpdate)
 	reqAuthMux.Post("/webhooks/delete/:id", webhooksDelete)
+	goji.Post("/webhooks/fire/:name", webhookEvent)
 
 	reqAuthMux.Get("/daily_tasks", dailyTasks)
 	reqAuthMux.Post("/daily_tasks/append", dailyTasksAppend)
@@ -375,7 +399,11 @@ func webhookEvent(c web.C, w http.ResponseWriter, r *http.Request) {
 		msg := fmt.Sprintf("Failed to get the webhook task. %s", err)
 		log.Printf(msg)
 		http.Error(w, msg, http.StatusInternalServerError)
-        return
+		return
+	}
+	if hook.Secret == "" {
+		// DO NOTHING
+		return
 	}
 
 	// read payload sent by github
@@ -410,7 +438,7 @@ func webhookEvent(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// special
-	if c.URLParams["name"] == "_configs" {
+	if c.URLParams["name"] == packageConfigsHookName {
 		if err := gSubakoCtx.RefreshProfileConfigs(); err != nil {
 			log.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

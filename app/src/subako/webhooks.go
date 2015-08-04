@@ -66,3 +66,22 @@ func (ctx *WebhookContext) GetByTarget(target string) (*Webhook, error) {
 
 	return &hook, nil
 }
+
+func (ctx *WebhookContext) GetByTargetOrCreate(
+	target	string,
+	hook	*Webhook,
+) (*Webhook, error) {
+	got_hook, err := ctx.GetByTarget(target)
+	if err != nil {
+		if err == gorm.RecordNotFound {
+			if err := ctx.Append(hook); err != nil {
+				return nil, err
+			}
+			return hook, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	return got_hook, nil
+}
