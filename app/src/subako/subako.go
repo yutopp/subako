@@ -216,14 +216,6 @@ func (ctx *SubakoContext) Build(
 		return task
 	}
 
-	// update profiles
-	if err := ctx.UpdateProfiles(); err != nil {
-		task.ErrorText = err.Error()
-		task.Status = TaskFailed
-
-		return task
-	}
-
 	// update repository
 	debPath := filepath.Join(ctx.BuilderCtx.packagesDir, result.PkgFileName)
 	if err := ctx.AptRepoCtx.AddPackage(debPath); err != nil {
@@ -245,6 +237,7 @@ func (ctx *SubakoContext) Build(
 	// notify
 	if ctx.NotificationCtx != nil {
 		if err := ctx.NotificationCtx.PostUpdate(map[string]string{
+			"type": "package_update",
 			"name": taskConfig.name,
 			"version": taskConfig.version,
 			"display_version": result.DisplayVersion,
@@ -257,6 +250,13 @@ func (ctx *SubakoContext) Build(
 		}
 	}
 
+	// update profiles
+	if err := ctx.UpdateProfilesWithNotification(); err != nil {
+		task.ErrorText = err.Error()
+		task.Status = TaskWarning
+
+		return task
+	}
 	task.Status = TaskSucceeded
 
 	return task
@@ -336,4 +336,30 @@ func (ctx *SubakoContext) UpdateProfiles() error {
 		ctx.AvailablePackages,
 		ctx.ProcConfigSetsCtx.Map,
 	)
+}
+
+
+func (ctx *SubakoContext) UpdateProfilesWithNotification() error {
+	if err := ctx.UpdateProfiles(); err != nil {
+		return err
+	}
+
+	if ctx.NotificationCtx != nil {
+		if err := ctx.NotificationCtx.PostUpdate(map[string]string{
+			"type": "profile_update",
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+
+func (ctx *SubakoContext) RefreshProfileConfigs() error {
+	if err := ctx.ProcConfigSetsCtx.Update(); err != nil {
+		return err
+	}
+
+	return ctx.UpdateProfilesWithNotification()
 }

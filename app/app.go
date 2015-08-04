@@ -147,7 +147,7 @@ func main() {
 
 	subakoCtx, err := subako.MakeSubakoContext(config)
 	if err != nil {
-		panic("error")
+		panic(err)
 	}
 	defer func() {
 		if err := subakoCtx.Save(); err != nil {
@@ -409,6 +409,16 @@ func webhookEvent(c web.C, w http.ResponseWriter, r *http.Request) {
 		http.Error(w, msg, http.StatusInternalServerError)
 	}
 
+	// special
+	if c.URLParams["name"] == "_configs" {
+		if err := gSubakoCtx.RefreshProfileConfigs(); err != nil {
+			log.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		return
+	}
+
 	// queue target script
 	procConfig, err := gSubakoCtx.ProcConfigSetsCtx.Find(hook.ProcName, hook.Version)
 	if err != nil {
@@ -615,7 +625,7 @@ func dailyTasksDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 
 
 func updateProcConfigSets(c web.C, w http.ResponseWriter, r *http.Request) {
-	if err := gSubakoCtx.ProcConfigSetsCtx.Update(); err != nil {
+	if err := gSubakoCtx.RefreshProfileConfigs(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -624,7 +634,7 @@ func updateProcConfigSets(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func regenerateProfiles(c web.C, w http.ResponseWriter, r *http.Request) {
-	if err := gSubakoCtx.UpdateProfiles(); err != nil {
+	if err := gSubakoCtx.UpdateProfilesWithNotification(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

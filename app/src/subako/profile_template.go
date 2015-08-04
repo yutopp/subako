@@ -30,11 +30,11 @@ func readProfileTemplate(
 		return nil, fmt.Errorf("Link section: %v", err)
 	}
 
-	if pt.Run == nil {
-		return nil, errors.New("must contain 'run' section")
+	if pt.Exec == nil {
+		return nil, errors.New("must contain 'exec' section")
 	}
-	if err := validateExecProfileTemplate(pt.Run); err != nil {
-		return nil, fmt.Errorf("Run section: %v", err)
+	if err := validateExecProfileTemplate(pt.Exec); err != nil {
+		return nil, fmt.Errorf("Exec section: %v", err)
 	}
 
 	log.Println("ProfileTemplate => ", pt)
@@ -97,7 +97,7 @@ type ProfileTemplate struct {
 
 	Compile				*ExecProfileTemplate	`yaml:"compile,omitempty"`
 	Link				*ExecProfileTemplate	`yaml:"link"`
-	Run					*ExecProfileTemplate	`yaml:"run"`
+	Exec				*ExecProfileTemplate	`yaml:"exec"`
 }
 
 type ExecProfileTemplate struct {
@@ -126,7 +126,7 @@ func (template *ProfileTemplate) Generate(
 	if err != nil { return }
 	profile.Link, err = setExecProfile(ap, template.Link)
 	if err != nil { return }
-	profile.Run, err = setExecProfile(ap, template.Run)
+	profile.Exec, err = setExecProfile(ap, template.Exec)
 	if err != nil { return }
 
 	return
@@ -149,7 +149,7 @@ type ProfilePatch struct {
 	Append				struct {
 		Compile				*ExecProfileTemplate
 		Link				*ExecProfileTemplate
-		Run					*ExecProfileTemplate
+		Exec				*ExecProfileTemplate
 	}
 }
 
@@ -166,7 +166,7 @@ func (patch *ProfilePatch) Generate(
 	profile.Link, err = appendExecProfile(ap, profile.Link, patch.Append.Link)
 	if err != nil { return }
 
-	profile.Run, err = appendExecProfile(ap, profile.Run, patch.Append.Run)
+	profile.Exec, err = appendExecProfile(ap, profile.Exec, patch.Append.Exec)
 	if err != nil { return }
 
 	return

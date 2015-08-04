@@ -18,7 +18,7 @@ type Profile struct {
 
 	Compile				*ExecProfile	`json:"compile"`
 	Link				*ExecProfile	`json:"link"`
-	Run					*ExecProfile	`json:"run"`
+	Exec				*ExecProfile	`json:"exec"`
 }
 
 func (p *Profile) Log() {
@@ -35,9 +35,9 @@ func (p *Profile) Log() {
 		log.Println(" Link")
 		p.Link.Log()
 	}
-	if p.Run != nil {
-		log.Println(" Run")
-		p.Run.Log()
+	if p.Exec != nil {
+		log.Println(" Exec")
+		p.Exec.Log()
 	}
 }
 
