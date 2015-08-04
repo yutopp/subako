@@ -38,4 +38,4 @@ cd app
 ./build
 bower update
 ```
-Then, run `./app` to host Subako.
+Then, run `./bin/server` to host Subako.

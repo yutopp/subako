@@ -13,4 +13,4 @@ GOPATH=`pwd` \
     || exit -1
 
 echo "building..."
-GOPATH=`pwd` go build
+GOPATH=`pwd` go build -o bin/server server || exit -2

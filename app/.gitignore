@@ -1,10 +1,10 @@
 pkg/
+bin/
 src/github.com/
 src/gopkg.in/
 
 public/bower_components/
 
-/app
 /config.yml
 
 /_storage/*
