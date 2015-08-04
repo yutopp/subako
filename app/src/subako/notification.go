@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 	"bytes"
-	"errors"
+	"fmt"
 	"time"
 	"io/ioutil"
 	"encoding/json"
@@ -69,7 +69,7 @@ func (ctx *NotificationContext) PostUpdate(message interface{}) error {
 	if err != nil { return err }
 
 	if resp.StatusCode != 200 {
-		return errors.New(string(body))
+		return fmt.Errorf("Request failed: %s\nStatus: %s\n\n%s", ctx.TargetUrl, resp.StatusCode, string(body))
 	} else {
 		return nil
 	}
