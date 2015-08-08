@@ -13,5 +13,8 @@ RUN apt-get update -qq && apt-get install -qqy make gcc ruby-dev git subversion 
 #
 RUN gem install fpm
 
+# addition
+RUN apt-get install -qqy mercurial
+
 #
 WORKDIR "/root"
