@@ -50,6 +50,7 @@ type SubakoContext struct {
 	NotificationCtx		*NotificationContext
 	DailyTasks			*DailyTasksContext
 	LogDir				string
+	Logger				IMiniLogger		// mini logger
 
 	queueCh				chan QueueTask
 	QueueHelper			[]QueueTask
@@ -58,6 +59,18 @@ type SubakoContext struct {
 }
 
 func MakeSubakoContext(config *SubakoConfig) (*SubakoContext, error) {
+	// load database
+	db, err := gorm.Open("sqlite3", config.DataBasePath)
+	if err != nil {
+		panic(err)
+	}
+
+	// logger
+	miniLogger, err := MakeMiniLogger(db)
+	if err != nil {
+		panic("error")
+	}
+
 	// Apt
 	aptRepo, err := MakeAptRepositoryContext(config.AptRepositoryBaseDir)
 	if err != nil {
@@ -100,12 +113,6 @@ func MakeSubakoContext(config *SubakoConfig) (*SubakoContext, error) {
 		panic(err)
 	}
 
-	// load database
-	db, err := gorm.Open("sqlite3", config.DataBasePath)
-	if err != nil {
-		panic(err)
-	}
-
 	// webhook holder
 	webhooks, err := MakeWebhooksContext(db)
 	if err != nil {
@@ -136,6 +143,7 @@ func MakeSubakoContext(config *SubakoConfig) (*SubakoContext, error) {
 		NotificationCtx: notificationCtx,
 		DailyTasks: dailyTasks,
 		LogDir: config.LogDir,
+		Logger: miniLogger,
 
 		queueCh: make(chan QueueTask, 100),
 		QueueHelper: make([]QueueTask, 0, 100),
@@ -197,6 +205,8 @@ func (ctx *SubakoContext) Build(
 
 		w.Write([]byte(fmt.Sprintf("Error occured => %s\n", err)))
 
+		ctx.Logger.Failed(fmt.Sprintf("Failed to build: %s / %s", taskConfig.name, taskConfig.version), task.ErrorText)
+
 		return task
 	}
 
@@ -213,6 +223,8 @@ func (ctx *SubakoContext) Build(
 		task.ErrorText = err.Error()
 		task.Status = TaskFailed
 
+		ctx.Logger.Failed(fmt.Sprintf("Failed to update packages: %s / %s", taskConfig.name, taskConfig.version), task.ErrorText)
+
 		return task
 	}
 
@@ -222,6 +234,8 @@ func (ctx *SubakoContext) Build(
 		task.ErrorText = err.Error()
 		task.Status = TaskFailed
 
+		ctx.Logger.Failed(fmt.Sprintf("Failed to update repo: %s / %s", taskConfig.name, taskConfig.version), task.ErrorText)
+
 		return task
 	}
 
@@ -230,6 +244,8 @@ func (ctx *SubakoContext) Build(
 	if err := os.Remove(debPath); err != nil {
 		task.ErrorText = "failed to remove source deb"
 		task.Status = TaskFailed
+
+		ctx.Logger.Failed(fmt.Sprintf("Failed to remove deb: %s / %s", taskConfig.name, taskConfig.version), task.ErrorText)
 
 		return task
 	}
@@ -246,6 +262,8 @@ func (ctx *SubakoContext) Build(
 			task.ErrorText = err.Error()
 			task.Status = TaskWarning
 
+			ctx.Logger.Failed(fmt.Sprintf("Failed to notification: %s / %s", taskConfig.name, taskConfig.version), task.ErrorText)
+
 			return task
 		}
 	}
@@ -258,6 +276,8 @@ func (ctx *SubakoContext) Build(
 		return task
 	}
 	task.Status = TaskSucceeded
+
+	ctx.Logger.Succeeded(fmt.Sprintf("Build: %s / %s", taskConfig.name, taskConfig.version))
 
 	return task
 }
@@ -275,6 +295,8 @@ func (ctx *SubakoContext) Queue(
 
 	ctx.QueueHelper = append(ctx.QueueHelper, task)
 	ctx.queueCh <- task
+
+	ctx.Logger.Succeeded(fmt.Sprintf("Queue the task: %s / %s", procConfig.name, procConfig.version))
 
 	return nil
 }
@@ -313,29 +335,44 @@ func (ctx *SubakoContext) execQueuedTask() {
 
 func (ctx *SubakoContext) queueDailyTask() {
 	log.Println("QueueDailyTask is called")
+	ctx.Logger.Succeeded("QueueDailyTask starts")
 
 	tasks := ctx.DailyTasks.GetDailyTasks()
 	for _, task := range tasks {
 		proc, err := ctx.ProcConfigSetsCtx.Find(task.ProcName, task.Version)
 		if err != nil {
-			log.Printf("Failed to find the task :: name: %s / version: %s", task.ProcName, task.Version)
+			msg := fmt.Sprintf("Failed to find the task :: name: %s / version: %s", task.ProcName, task.Version)
+			log.Println(msg)
+			ctx.Logger.Failed("DailyTask", msg)
+
 			continue
 		}
 
 		log.Printf("QueueDailyTask queue :: name: %s / version: %s", task.ProcName, task.Version)
 		if err := ctx.Queue(proc); err != nil {
-			log.Println("Failed to queue the task")
+			msg := "Failed to queue the task"
+			log.Println(msg)
+			ctx.Logger.Failed("DailyTask", msg)
+
 			continue
 		}
 	}
+
+	ctx.Logger.Succeeded("QueueDailyTask finished")
 }
 
 
 func (ctx *SubakoContext) UpdateProfiles() error {
-	return ctx.Profiles.GenerateProcProfiles(
+	if err := ctx.Profiles.GenerateProcProfiles(
 		ctx.AvailablePackages,
 		ctx.ProcConfigSetsCtx.Map,
-	)
+	); err != nil {
+		ctx.Logger.Failed("UpdateProfiles", err.Error())
+		return err
+	}
+
+	ctx.Logger.Succeeded("UpdateProfiles")
+	return nil
 }
 
 
@@ -348,18 +385,26 @@ func (ctx *SubakoContext) UpdateProfilesWithNotification() error {
 		if err := ctx.NotificationCtx.PostUpdate(map[string]string{
 			"type": "profile_update",
 		}); err != nil {
+			ctx.Logger.Failed("UpdateProfilesWithNotification", err.Error())
 			return err
 		}
 	}
 
+	ctx.Logger.Succeeded("UpdateProfilesWithNotification")
 	return nil
 }
 
 
 func (ctx *SubakoContext) RefreshProfileConfigs() error {
 	if err := ctx.ProcConfigSetsCtx.Update(); err != nil {
+		ctx.Logger.Failed("RefreshProfileConfigs", err.Error())
 		return err
 	}
 
-	return ctx.UpdateProfilesWithNotification()
+	if err := ctx.UpdateProfilesWithNotification(); err != nil {
+		return err
+	}
+
+	ctx.Logger.Succeeded("RefreshProfileConfigs")
+	return nil
 }

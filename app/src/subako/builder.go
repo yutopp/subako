@@ -124,7 +124,7 @@ func (ctx *BuilderContext) build(
 				"TR_TARGET_ARCH=" + procConfig.targetArch,
 				"TR_INSTALL_PATH=" + ctx.installBasePrefix,
 				"TR_PKGS_PATH=" + inContainerBuiltPkgsDir,
-				"TR_CPU_CORE=1",
+				"TR_CPU_CORE=2",	// TODO: fix
 				"TR_PACKAGE_PREFIX=" + ctx.packagePrefix,
 			},
 			Cmd: []string{"bash", inContainerInstallScriptPath},

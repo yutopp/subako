@@ -19,6 +19,7 @@ type DailyTask struct {
 type DailyTasksContext struct {
 	Db		gorm.DB
 	Point	Crontab
+	Logger	IMiniLogger
 }
 
 func MakeDailyTasksContext(db gorm.DB, point Crontab) (*DailyTasksContext, error) {

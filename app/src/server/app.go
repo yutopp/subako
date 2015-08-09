@@ -220,6 +220,8 @@ func main() {
 	reqAuthMux.Get("/update_proc_config_sets", updateProcConfigSets)
 	reqAuthMux.Get("/regenerate_profiles", regenerateProfiles)
 
+	reqAuthMux.Get("/system_logs", showMiniLogs)
+
 	goji.Get("/api/profiles", showProfilesAPI)
 	goji.Handle("/*", reqAuthMux)
 
@@ -235,6 +237,7 @@ func index(c web.C, w http.ResponseWriter, r *http.Request) {
     }
 
 	tasksForDisplay := gSubakoCtx.RunningTasks.MakeDisplayTask()
+
 	tpl.ExecuteWriter(pongo2.Context{
 		"config_sets_ctx": gSubakoCtx.ProcConfigSetsCtx,
 		"tasks": tasksForDisplay,
@@ -398,6 +401,7 @@ func webhookEvent(c web.C, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		msg := fmt.Sprintf("Failed to get the webhook task. %s", err)
 		log.Printf(msg)
+		gSubakoCtx.Logger.Failed("webhook", msg)
 		http.Error(w, msg, http.StatusInternalServerError)
 		return
 	}
@@ -411,6 +415,7 @@ func webhookEvent(c web.C, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		msg := fmt.Sprintf("Failed to read the request body. %s", err)
 		log.Printf(msg)
+		gSubakoCtx.Logger.Failed("webhook", msg)
 		http.Error(w, msg, http.StatusInternalServerError)
         return
 	}
@@ -434,6 +439,7 @@ func webhookEvent(c web.C, w http.ResponseWriter, r *http.Request) {
 	if githubSig != generatedSig {
 		msg := "Invalid signature"
 		log.Printf(msg)
+		gSubakoCtx.Logger.Failed("webhook", msg)
 		http.Error(w, msg, http.StatusInternalServerError)
 	}
 
@@ -451,15 +457,18 @@ func webhookEvent(c web.C, w http.ResponseWriter, r *http.Request) {
 	procConfig, err := gSubakoCtx.ProcConfigSetsCtx.Find(hook.ProcName, hook.Version)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		gSubakoCtx.Logger.Failed("webhook", err.Error())
 		return
 	}
 
 	if err := gSubakoCtx.Queue(procConfig); err != nil {
-		http.Error(w, "Failed to add the task to queue", http.StatusInternalServerError)
+		msg := "Failed to add the task to queue"
+		http.Error(w, msg, http.StatusInternalServerError)
 		return
 	}
 
 	// succeeded
+	gSubakoCtx.Logger.Succeeded("webhook")
 }
 
 func webhooks(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -670,6 +679,20 @@ func regenerateProfiles(c web.C, w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
+
+func showMiniLogs(c web.C, w http.ResponseWriter, r *http.Request) {
+	tpl, err := pongo2.DefaultSet.FromFile("system_logs.html")
+	if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+	latestLogs := gSubakoCtx.Logger.GetLatest(50)
+
+	tpl.ExecuteWriter(pongo2.Context{
+		"latest_logs": latestLogs,
+	}, w)
+}
 
 
 func showProfilesAPI(c web.C, w http.ResponseWriter, r *http.Request) {

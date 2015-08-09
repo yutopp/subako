@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<h1>System Logs</h1>
+
+<ul>
+    {% for log in latest_logs %}
+
+    <li><a href="/{% if task.IsActive %}live_status{% else %}status{% endif %}/{{task.Id}}">{{task.LogName}}</a>
+        {% if log.Status == 0 %}
+        {# succeeded #}
+        <span class="label label-success">Succeeded</span>
+
+        {% elif log.Status == 1 %}
+        {# failed #}
+        <span class="label label-danger">Failed</span>
+
+        {% endif %}
+        {{log.CreatedAt}} - {{log.Title}}
+        <ul>
+            <li><pre>{{log.Body}}</pre></li>
+        </ul>
+    </li>
+
+    {% endfor %}
+</ul>
+
+{% endblock %}
