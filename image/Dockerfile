@@ -17,6 +17,7 @@ RUN gem install fpm
 RUN apt-get install -qqy mercurial
 # makeinfo will be installed by texinfo
 RUN apt-get install -qqy automake guile-2.0 guile-2.0-dev autogen gperf gettext flex texinfo m4
+RUN apt-get install -qqy bison
 
 #
 WORKDIR "/root"
