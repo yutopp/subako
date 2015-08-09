@@ -101,7 +101,7 @@ type ProfileTemplate struct {
 }
 
 type ExecProfileTemplate struct {
-	Extension			string					`yaml:"extension,omitempty" json:"extention"`
+	Extension			string					`yaml:"extension,omitempty" json:"extension"`
 	Commands			[]string				`yaml:"commands" json:"commands"`
 	Envs				map[string]string		`yaml:"envs,omitempty" json:"envs"`
 	FixedCommands		[][]string				`yaml:"fixed_commands,omitempty" json:"fixed_commands"`
