@@ -394,7 +394,9 @@ func showPackages(c web.C, w http.ResponseWriter, r *http.Request) {
 
 // Webhook called from other services
 func webhookEvent(c web.C, w http.ResponseWriter, r *http.Request) {
-	log.Printf("Webhook name => %s\n", c.URLParams["name"])
+	entryMsg := fmt.Sprintf("Webhook name => %s\n", c.URLParams["name"])
+	log.Printf(entryMsg)
+	gSubakoCtx.Logger.Succeeded(entryMsg)
 
 	// get webhook task from database
 	hook, err := gSubakoCtx.Webhooks.GetByTarget(c.URLParams["name"])
@@ -407,6 +409,7 @@ func webhookEvent(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 	if hook.Secret == "" {
 		// DO NOTHING
+		gSubakoCtx.Logger.Succeeded("webhook: do nothing")
 		return
 	}
 
