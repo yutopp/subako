@@ -18,9 +18,12 @@
 
         {% endif %}
         {{log.CreatedAt}} - {{log.Title}}
+
+        {% if log.Body|length > 0 %}
         <ul>
             <li><pre>{{log.Body}}</pre></li>
         </ul>
+        {% endif %}
     </li>
 
     {% endfor %}

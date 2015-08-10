@@ -224,6 +224,8 @@ func main() {
 
 	reqAuthMux.Get("/system_logs", showMiniLogs)
 
+	goji.Get("/information", showInfo)
+
 	goji.Get("/api/profiles", showProfilesAPI)
 	goji.Handle("/*", reqAuthMux)
 
@@ -744,6 +746,17 @@ func showMiniLogs(c web.C, w http.ResponseWriter, r *http.Request) {
 	tpl.ExecuteWriter(pongo2.Context{
 		"latest_logs": latestLogs,
 	}, w)
+}
+
+
+func showInfo(c web.C, w http.ResponseWriter, r *http.Request) {
+	tpl, err := pongo2.DefaultSet.FromFile("information.html")
+	if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+	tpl.ExecuteWriter(pongo2.Context{}, w)
 }
 
 
