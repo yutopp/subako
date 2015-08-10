@@ -199,6 +199,7 @@ func main() {
 	goji.Get("/", index)
 
 	reqAuthMux.Get("/live_status/:id", liveStatus)
+	reqAuthMux.Get("/abort_task/:id", abortTask)
 	goji.Get("/status/:id", status)
 
 	reqAuthMux.Get("/build/:name/:version", build)
@@ -336,6 +337,36 @@ func status(c web.C, w http.ResponseWriter, r *http.Request) {
 		"task": runningTask,
 		"buffer": string(buffer),
 	}, w)
+}
+
+func abortTask(c web.C, w http.ResponseWriter, r *http.Request) {
+	log.Printf("Running Task Id => %s\n", c.URLParams["id"])
+	id, err := strconv.ParseInt(c.URLParams["id"], 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid id", http.StatusInternalServerError)
+		return
+	}
+
+	runningTask := gSubakoCtx.RunningTasks.Get(int(id))
+	if runningTask == nil {
+		http.Error(w, "task is nil", http.StatusInternalServerError)
+		return
+	}
+
+	if runningTask.Killable() {
+		if err := runningTask.Abort(); err != nil {
+			http.Error(w, "Failed to kill container", http.StatusInternalServerError)
+			return
+		}
+
+		// succeeded
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+
+	} else {
+		http.Error(w, "Container is not killable", http.StatusInternalServerError)
+		return
+	}
 }
 
 

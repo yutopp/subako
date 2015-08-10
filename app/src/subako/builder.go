@@ -82,10 +82,16 @@ type BuildResult struct {
 	hostInstallPrefix	string
 }
 
+type IntermediateContainerInfo struct {
+	ContainerID			string
+	KillContainerFunc	func() error
+}
+
 func (ctx *BuilderContext) build(
 	procConfig			*ProcConfig,
 	procConfigSetsDir	string,
 	writePipe			io.Writer,
+	intermediateCh		chan<-IntermediateContainerInfo,
 ) (*BuildResult, error) {
 	const inContainerPkgConfigsDir = "/etc/pkgconfigs/"
 	const inContainerCurPkgConfigsDir = "/etc/current_pkgconfig/"
@@ -140,6 +146,15 @@ func (ctx *BuilderContext) build(
 		ID: container.ID,
 		Force: true,
 	})
+	intermediateCh <- IntermediateContainerInfo{
+		ContainerID: container.ID,
+		KillContainerFunc: func() error {
+			log.Printf("Kill Container %s", container.ID)
+			return ctx.client.KillContainer(docker.KillContainerOptions{
+				ID: container.ID,
+			})
+		},
+	}
 
 	log.Printf("Attach Container => %s\n", container.ID)
 	attachOpt := docker.AttachToContainerOptions{
@@ -163,7 +178,7 @@ func (ctx *BuilderContext) build(
 			procConfigSetsDir + ":" + inContainerPkgConfigsDir + ":ro",		// readonly
 			procConfig.basePath + ":" + inContainerCurPkgConfigsDir + ":ro",// readonly
 			workDir + ":" + inContainerWorkDir,
-			ctx.virtualUsrDir + ":" + ctx.installBasePrefix + "ro",			// readonly, user can user compilers from ctx.virtualUsrDir
+			ctx.virtualUsrDir + ":" + ctx.installBasePrefix + ":ro",			// readonly, user can user compilers from ctx.virtualUsrDir
 			ctx.packagesDir + ":" + inContainerBuiltPkgsDir,
 		},
 	}

@@ -41,6 +41,9 @@ type RunningTask struct {
 	LogFilePath			string
 	Status				RunningStatus
 	ErrorText			string
+
+	ContainerID			*string			`json:"-"`	// ignore when saving
+	KillContainer		*func() error	`json:"-"`	// ignore when saving
 }
 
 func (rt *RunningTask) GetError() error {
@@ -53,6 +56,36 @@ func (rt *RunningTask) GetError() error {
 
 func (rt *RunningTask) IsActive() bool {
 	return rt.Status == TaskRunning
+}
+
+func (rt *RunningTask) Killable() bool {
+	return rt.IsActive() && rt.ContainerID != nil && rt.KillContainer != nil
+}
+
+func (rt *RunningTask) Warning(message string) {
+	if rt.Status == TaskRunning {
+		rt.Status = TaskWarning
+	}
+	rt.ErrorText = message
+}
+
+func (rt *RunningTask) Failed(message string) {
+	if rt.Status == TaskRunning {
+		rt.Status = TaskFailed
+	}
+	rt.ErrorText = message
+}
+
+func (rt *RunningTask) Abort() error {
+	var err error
+
+	if rt.Killable() {
+		err = (*rt.KillContainer)()
+	}
+
+	rt.Status = TaskAborted
+
+	return err
 }
 
 
@@ -92,10 +125,10 @@ func (rt *RunningTasks) Save() error {
 		rt.Next = maxShowingTaskNum
 	}
 
-	//
+	// kill running tasks
 	for _, task := range rt.Tasks {
 		if task.Status == TaskRunning {
-			task.Status = TaskAborted
+			task.Abort()
 		}
 	}
 

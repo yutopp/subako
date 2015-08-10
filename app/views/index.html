@@ -42,7 +42,7 @@
         <ul>
             {% for task in tasks %}
 
-            <li><a href="/{% if task.IsActive %}live_status{% else %}status{% endif %}/{{task.Id}}">{{task.LogName}}</a>
+            <li><a href="/{% if task.IsActive() %}live_status{% else %}status{% endif %}/{{task.Id}}">{{task.LogName}}</a>
                 {% if task.Status == 0 %}
                 {# running #}
                 <span class="label label-primary">Running</span>
@@ -63,6 +63,10 @@
                 {# warning #}
                 <span class="label label-warning">Warning</span>
 
+                {% endif %}
+
+                {% if task.Killable() %}
+                <a href="/abort_task/{{task.Id}}"><span class="glyphicon glyphicon-remove"></span>Kill</a>
                 {% endif %}
             </li>
 

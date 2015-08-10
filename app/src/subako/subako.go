@@ -190,18 +190,24 @@ func (ctx *SubakoContext) Build(
 	w, err := os.OpenFile(logFilePath, os.O_CREATE | os.O_RDWR, 0644)
 	if err != nil {
 		log.Printf("Failed to openfile %s", logFilePath)
-		task.ErrorText = "failed to open log reciever"
-		task.Status = TaskFailed
+		task.Failed("failed to open log reciever")
+
 		return task
 	}
 	defer w.Close()
 	task.LogFilePath = logFilePath
 
-	result, err := ctx.BuilderCtx.build(taskConfig, ctx.ProcConfigSetsCtx.BaseDir, w)
+	ch := make(chan IntermediateContainerInfo)
+	go func() {
+		ici := <-ch
+		log.Printf("Got Container information: %v", ici)
+		task.ContainerID = &ici.ContainerID
+		task.KillContainer = &ici.KillContainerFunc
+	}()
+	result, err := ctx.BuilderCtx.build(taskConfig, ctx.ProcConfigSetsCtx.BaseDir, w, ch)
 	if err != nil {
 		log.Printf("Failed to build / %v", err)
-		task.ErrorText = err.Error()
-		task.Status = TaskFailed
+		task.Failed(err.Error())
 
 		w.Write([]byte(fmt.Sprintf("Error occured => %s\n", err)))
 
@@ -220,9 +226,7 @@ func (ctx *SubakoContext) Build(
 		InstallBase: result.hostInstallBase,
 		InstallPrefix: result.hostInstallPrefix,
 	}); err != nil {
-		task.ErrorText = err.Error()
-		task.Status = TaskFailed
-
+		task.Failed(err.Error())
 		ctx.Logger.Failed(fmt.Sprintf("Failed to update packages: %s / %s", taskConfig.name, taskConfig.version), task.ErrorText)
 
 		return task
@@ -231,8 +235,7 @@ func (ctx *SubakoContext) Build(
 	// update repository
 	debPath := filepath.Join(ctx.BuilderCtx.packagesDir, result.PkgFileName)
 	if err := ctx.AptRepoCtx.AddPackage(debPath); err != nil {
-		task.ErrorText = err.Error()
-		task.Status = TaskFailed
+		task.Failed(err.Error())
 
 		ctx.Logger.Failed(fmt.Sprintf("Failed to update repo: %s / %s", taskConfig.name, taskConfig.version), task.ErrorText)
 
@@ -242,8 +245,7 @@ func (ctx *SubakoContext) Build(
 	// TODO: fix...
 	// remove a source deb file to save free storage
 	if err := os.Remove(debPath); err != nil {
-		task.ErrorText = "failed to remove source deb"
-		task.Status = TaskFailed
+		task.Failed("failed to remove source deb")
 
 		ctx.Logger.Failed(fmt.Sprintf("Failed to remove deb: %s / %s", taskConfig.name, taskConfig.version), task.ErrorText)
 
@@ -259,8 +261,7 @@ func (ctx *SubakoContext) Build(
 			"display_version": result.DisplayVersion,
 			"unix_time": fmt.Sprintf("%v", time.Now().Unix()),
 		}); err != nil {
-			task.ErrorText = err.Error()
-			task.Status = TaskWarning
+			task.Warning(err.Error())
 
 			ctx.Logger.Failed(fmt.Sprintf("Failed to notification: %s / %s", taskConfig.name, taskConfig.version), task.ErrorText)
 
@@ -270,8 +271,7 @@ func (ctx *SubakoContext) Build(
 
 	// update profiles
 	if err := ctx.UpdateProfilesWithNotification(); err != nil {
-		task.ErrorText = err.Error()
-		task.Status = TaskWarning
+		task.Warning(err.Error())
 
 		return task
 	}
