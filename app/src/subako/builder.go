@@ -93,10 +93,10 @@ func (ctx *BuilderContext) build(
 	writePipe			io.Writer,
 	intermediateCh		chan<-IntermediateContainerInfo,
 ) (*BuildResult, error) {
-	const inContainerPkgConfigsDir = "/etc/pkgconfigs/"
-	const inContainerCurPkgConfigsDir = "/etc/current_pkgconfig/"
+	const inContainerPkgConfigsDir = "/etc/pkgconfigs"
+	const inContainerCurPkgConfigsDir = "/etc/current_pkgconfig"
 
-	const inContainerWorkDir = "/root/"
+	const inContainerWorkDir = "/root"
 	const inContainerBuiltPkgsDir = "/etc/torigoya_pkgs"
 
 	//
@@ -178,7 +178,7 @@ func (ctx *BuilderContext) build(
 			procConfigSetsDir + ":" + inContainerPkgConfigsDir + ":ro",		// readonly
 			procConfig.basePath + ":" + inContainerCurPkgConfigsDir + ":ro",// readonly
 			workDir + ":" + inContainerWorkDir,
-			ctx.virtualUsrDir + ":" + ctx.installBasePrefix + ":ro",			// readonly, user can user compilers from ctx.virtualUsrDir
+			ctx.virtualUsrDir + ":" + ctx.installBasePrefix,				// user can use compilers from ctx.installBasePrefix
 			ctx.packagesDir + ":" + inContainerBuiltPkgsDir,
 		},
 	}
