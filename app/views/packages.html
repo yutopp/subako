@@ -3,7 +3,7 @@
 {% block content %}
 <div class="row">
     <div class="col-xs-12">
-        LastUpdated: {{packages.LastUpdated}}<br>
+        LastUpdated: {{last_update}}<br>
 
         {% for name, detail in packages.Packages %}
 
@@ -11,7 +11,10 @@
         <ul>
         {% for version, package in detail %}
 
-            <li>{{ version }} / {{ package.PackageName }} {{ package.PackageVersion }} {{ package.DisplayVersion }}</li>
+            <li>
+                {{ version }} / {{ package.PackageName }} {{ package.PackageVersion }} {{ package.DisplayVersion }}
+                <a href="/remove_package/{{name}}/{{version}}"><span class="glyphicon glyphicon-remove"></span>Remove</a>
+            </li>
 
         {% endfor %}
         </ul>

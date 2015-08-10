@@ -408,3 +408,15 @@ func (ctx *SubakoContext) RefreshProfileConfigs() error {
 	ctx.Logger.Succeeded("RefreshProfileConfigs")
 	return nil
 }
+
+
+func (ctx *SubakoContext) RemovePackage(name, version string) error {
+	if err := ctx.AvailablePackages.Remove(name, version); err != nil {
+		ctx.Logger.Failed("RemovePackage", err.Error())
+		return err
+	}
+
+	ctx.Logger.Succeeded(fmt.Sprintf("RemovePackage: %s / %s", name, version))
+
+	return ctx.UpdateProfilesWithNotification()
+}

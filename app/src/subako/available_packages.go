@@ -50,7 +50,7 @@ func (ap *AvailablePackage) ReplaceString(s string) (string, error) {
 type AvailableVerPackages map[string]AvailablePackage		// map[Version]
 
 type AvailablePackages struct {
-	LastUpdated		int64		// Unix time
+	LastUpdated		int64							// Unix time
 	Packages		map[string]AvailableVerPackages	// map[Name]detail
 
 	FilePath		string		`json:"-"`	// ignore
@@ -113,6 +113,40 @@ func (ap *AvailablePackages) Update(name string, a *AvailablePackage) error {
 		ap.Packages[name] = AvailableVerPackages{
 			a.Version: *a,
 		}
+	}
+
+	ap.LastUpdated = time.Now().Unix()
+
+	log.Println("PACKAGES", ap)
+
+	return nil
+}
+
+
+func (ap *AvailablePackages) Remove(name, version string) error {
+	ap.m.Lock()
+	defer ap.m.Unlock()
+
+	if ap.Packages == nil {
+		ap.Packages = make(map[string]AvailableVerPackages)
+	}
+
+	log.Printf("removing => %s / %s", name, version)
+
+	if packages, ok := ap.Packages[name]; ok {
+		// has 'name' key
+		if _, ok := packages[version]; ok {
+			// has 'version' key
+			delete(packages, version)
+		}
+
+		if len(packages) == 0 {
+			// there are no packages
+			delete(ap.Packages, name)
+		}
+
+	} else {
+		return fmt.Errorf("There are no packages named %s", name)
 	}
 
 	ap.LastUpdated = time.Now().Unix()

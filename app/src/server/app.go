@@ -206,6 +206,7 @@ func main() {
 	reqAuthMux.Get("/queue/:name/:version", queue)
 
 	goji.Get("/packages", showPackages)
+	reqAuthMux.Get("/remove_package/:name/:version", removePackage)
 
 	reqAuthMux.Get("/webhooks", webhooks)
 	reqAuthMux.Post("/webhooks/append", webhooksAppend)
@@ -419,9 +420,26 @@ func showPackages(c web.C, w http.ResponseWriter, r *http.Request) {
     }
 
 	tpl.ExecuteWriter(pongo2.Context{
+		"last_update": time.Unix(gSubakoCtx.AvailablePackages.LastUpdated, 0).String(),
 		"packages": gSubakoCtx.AvailablePackages,
 	}, w)
 }
+
+func removePackage(c web.C, w http.ResponseWriter, r *http.Request) {
+	log.Printf("build name => %s\n", c.URLParams["name"])
+	log.Printf("build version => %s\n", c.URLParams["version"])
+
+	name := c.URLParams["name"]
+	version := c.URLParams["version"]
+
+	if err := gSubakoCtx.RemovePackage(name, version); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/packages", http.StatusSeeOther)
+}
+
 
 // Webhook called from other services
 func webhookEvent(c web.C, w http.ResponseWriter, r *http.Request) {
