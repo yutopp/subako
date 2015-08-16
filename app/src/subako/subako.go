@@ -166,6 +166,9 @@ func MakeSubakoContext(config *SubakoConfig) (*SubakoContext, error) {
 func (ctx *SubakoContext) BuildAsync(
 	taskConfig			IPackageBuildConfig,
 ) *RunningTask {
+	log.Println("Build Async: enter")
+	defer log.Println("Build Async: leave")
+
 	task := ctx.RunningTasks.createTaskHolder()
 	go ctx.Build(taskConfig, task)
 
@@ -420,8 +423,27 @@ func (ctx *SubakoContext) RemovePackage(name, version string) error {
 }
 
 
-func (ctx *SubakoContext) RemovePackageDep(name, version, depName, DepVersion string) error {
-	if err := ctx.AvailablePackages.Remove(name, version, depName, DepVersion); err != nil {
+func (ctx *SubakoContext) RemovePackageDep(name, version, depName, depVersion string) error {
+	pkg, err := ctx.AvailablePackages.FindDep(
+		PackageName(name),
+		PackageVersion(version),
+		PackageName(depName),
+		PackageVersion(depVersion),
+	)
+	if err != nil {
+		ctx.Logger.Failed("RemovePackage", err.Error())
+		return err
+	}
+
+	// remove from apt repository
+	pkgName := pkg.GeneratedPackageName
+	if err := ctx.AptRepoCtx.RemovePackage(pkgName); err != nil {
+		ctx.Logger.Failed("RemovePackage", fmt.Sprintf("Failed to remove from repo: %s / %s", pkgName, err.Error()))
+		return err
+	}
+
+	//
+	if err := ctx.AvailablePackages.Remove(name, version, depName, depVersion); err != nil {
 		ctx.Logger.Failed("RemovePackage", err.Error())
 		return err
 	}

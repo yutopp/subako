@@ -17,12 +17,12 @@ func (r *Reprepro) MakeLsCommand(packagePath string) []string {
 	return append([]string{"reprepro", "-b", r.RepositoryPath}, args...)
 }
 
-/*
-func (r *Reprepro) MakeRemoveCommand(packagePath string) string {
-	args := r.makeIncludePart(packagePath)
-	return fmt.Sprintf("reprepro -b %s %s deleteunreferenced", r.RepositoryPath, args)
+func (r *Reprepro) MakeRemoveCommand(packageName string) []string {
+	args := r.makeRemovePart(packageName)
+	return append([]string{"reprepro", "-b", r.RepositoryPath}, args...)
+	// "deleteunreferenced"
 }
-*/
+
 
 func (r *Reprepro) makeIncludePart(packagePath string) []string {
 	return []string{"includedeb", r.CodeName, packagePath}

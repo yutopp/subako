@@ -1,6 +1,7 @@
 package subako
 
 import (
+	"log"
 	"os"
 	"os/exec"
 	"reprepro"
@@ -33,6 +34,20 @@ func MakeAptRepositoryContext(
 
 func (ctx *AptRepositoryContext) AddPackage(debPath string) error {
 	args := ctx.reprepro.MakeAddCommand(debPath)
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil { return err }
+
+	return nil
+}
+
+
+func (ctx *AptRepositoryContext) RemovePackage(pkgName string) error {
+	log.Printf("REMOVE: repoPath(%s)", ctx.reprepro.RepositoryPath)
+
+	args := ctx.reprepro.MakeRemoveCommand(pkgName)
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

@@ -182,7 +182,7 @@ func (ctx *ProcConfigSetsContext) FindWithDep(
 		return nil, err
 	}
 
-	ap, err := aps.Find(depName, depVersion)
+	ap, err := aps.Find(PackageName(depName), PackageVersion(depVersion))
 	if err != nil {
 		return nil, err
 	}

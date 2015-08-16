@@ -195,21 +195,30 @@ func (ap *AvailablePackages) Remove(
 
 
 func (ap *AvailablePackages) Find(
-	name	string,		// TODO: change to PackageName
-	version	string,		// TODO: change to PackageVersion
+	name		PackageName,
+	version		PackageVersion,
+) (*AvailablePackage, error) {
+	depName := PackageName("")
+	depVersion := PackageVersion("")
+
+	return ap.FindDep(name, version, depName, depVersion)
+}
+
+func (ap *AvailablePackages) FindDep(
+	name		PackageName,
+	version		PackageVersion,
+	depName		PackageName,
+	depVersion	PackageVersion,
 ) (*AvailablePackage, error) {
 	ap.m.Lock()
 	defer ap.m.Unlock()
-
-	depName := PackageName("")
-	depVersion := PackageVersion("")
 
 	if ap.Packages == nil {
 		return nil, fmt.Errorf("There are no available packages")
 	}
 
-	if packages, ok := ap.Packages[PackageName(name)]; ok {
-		if depPkgMap, ok := packages[PackageVersion(version)]; ok {
+	if packages, ok := ap.Packages[name]; ok {
+		if depPkgMap, ok := packages[version]; ok {
 			if depPkgVerMap, ok := depPkgMap[depName]; ok {
 				if pkg, ok := depPkgVerMap[depVersion]; ok {
 					return &pkg, nil
@@ -218,7 +227,7 @@ func (ap *AvailablePackages) Find(
 		}
 	}
 
-	return nil, fmt.Errorf("%s-%s is not found in available packages", name, version)
+	return nil, fmt.Errorf("(%s,%s)[with %s, %s] is not found in available packages", name, version, depName, depVersion)
 }
 
 
