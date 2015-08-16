@@ -1,26 +1,55 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="row">
-    <div class="col-xs-12">
-        LastUpdated: {{last_update}}<br>
 
-        {% for name, detail in packages.Packages %}
+<h1>Packages</h1>
 
-        {{ name }}<br>
-        <ul>
-        {% for version, package in detail %}
+LastUpdated: {{last_update}}<br>
 
-            <li>
-                {{ version }} / {{ package.PackageName }} {{ package.PackageVersion }} {{ package.DisplayVersion }}
-                <a href="/remove_package/{{name}}/{{version}}"><span class="glyphicon glyphicon-remove"></span>Remove</a>
-            </li>
+<table class="table table-striped">
+    <tr>
+        <th>name</th>
+        <th>version</th>
+        <th>disp version</th>
+        <th>genpkg name</th>
+        <th>genpkg version</th>
+        <th>dep name</th>
+        <th>dep version</th>
+        <th></th>
+    </tr>
 
-        {% endfor %}
-        </ul>
+    {% for name, pkgVers in packages.Packages %}
+    {% for version, pkgDeps in pkgVers %}
+    {% for depPkgName, pkgDepVers in pkgDeps %}
+    {% for depPkgVersion, package in pkgDepVers %}
 
-        {% endfor %}
-    </div>
-</div>
+    <tr>
+        <td>{{ name }}</td>
+        <td>{{ version }}</td>
+        <td>{{ package.DisplayVersion }}</td>
+        <td>{{ package.GeneratedPackageName }}</td>
+        <td>{{ package.GeneratedPackageVersion }}</td>
+
+        {% if depPkgName|length == 0 %}
+
+        <td>(none)</td>
+        <td>(none)</td>
+        <td><a href="/remove_package/{{name}}/{{version}}"><span class="glyphicon glyphicon-remove"></span>Remove</a></td>
+
+        {% else %}
+
+        <td>{{ depPkgName }}</td>
+        <td>{{ depPkgVersion }}</td>
+        <td><a href="/remove_package/{{name}}/{{version}}/{{depPkgName}}/{{depPkgVersion}}"><span class="glyphicon glyphicon-remove"></span>Remove</a></td>
+
+        {% endif %}
+    </tr>
+
+    {% endfor %}
+    {% endfor %}
+    {% endfor %}
+    {% endfor %}
+</table>
+
 
 {% endblock %}

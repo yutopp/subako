@@ -205,8 +205,12 @@ func main() {
 	reqAuthMux.Get("/build/:name/:version", build)
 	reqAuthMux.Get("/queue/:name/:version", queue)
 
+	reqAuthMux.Get("/build/:name/:version/:dep_name/:dep_version", buildDep)
+	reqAuthMux.Get("/queue/:name/:version/:dep_name/:dep_version", queueDep)
+
 	goji.Get("/packages", showPackages)
 	reqAuthMux.Get("/remove_package/:name/:version", removePackage)
+	reqAuthMux.Get("/remove_package/:name/:version/:dep_name/:dep_version", removePackageDep)
 
 	reqAuthMux.Get("/webhooks", webhooks)
 	reqAuthMux.Post("/webhooks/append", webhooksAppend)
@@ -226,6 +230,7 @@ func main() {
 
 	goji.Get("/information", showInfo)
 
+	goji.Get("/profiles", showProfiles)
 	goji.Get("/api/profiles", showProfilesAPI)
 	goji.Handle("/*", reqAuthMux)
 
@@ -414,6 +419,67 @@ func queue(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 
+func buildDep(c web.C, w http.ResponseWriter, r *http.Request) {
+	log.Printf("build name => %s\n", c.URLParams["name"])
+	log.Printf("build version => %s\n", c.URLParams["version"])
+	log.Printf("build dep name => %s\n", c.URLParams["dep_name"])
+	log.Printf("build dep version => %s\n", c.URLParams["dep_version"])
+
+	name := c.URLParams["name"]
+	version := c.URLParams["version"]
+	depName := c.URLParams["dep_name"]
+	depVersion := c.URLParams["dep_version"]
+
+	procConfig, err := gSubakoCtx.ProcConfigSetsCtx.FindWithDep(
+		name,
+		version,
+		depName,
+		depVersion,
+		gSubakoCtx.AvailablePackages,
+	)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	runningTask := gSubakoCtx.BuildAsync(procConfig)
+
+	url := fmt.Sprintf("/live_status/%d", runningTask.Id)
+	http.Redirect(w, r, url, http.StatusSeeOther)
+}
+
+func queueDep(c web.C, w http.ResponseWriter, r *http.Request) {
+	log.Printf("build name => %s\n", c.URLParams["name"])
+	log.Printf("build version => %s\n", c.URLParams["version"])
+	log.Printf("build dep name => %s\n", c.URLParams["dep_name"])
+	log.Printf("build dep version => %s\n", c.URLParams["dep_version"])
+
+	name := c.URLParams["name"]
+	version := c.URLParams["version"]
+	depName := c.URLParams["dep_name"]
+	depVersion := c.URLParams["dep_version"]
+
+	procConfig, err := gSubakoCtx.ProcConfigSetsCtx.FindWithDep(
+		name,
+		version,
+		depName,
+		depVersion,
+		gSubakoCtx.AvailablePackages,
+	)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := gSubakoCtx.Queue(procConfig); err != nil {
+		http.Error(w, "Failed to add the task to queue", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+
 func showPackages(c web.C, w http.ResponseWriter, r *http.Request) {
 	tpl, err := pongo2.DefaultSet.FromFile("packages.html")
 	if err != nil {
@@ -428,13 +494,32 @@ func showPackages(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func removePackage(c web.C, w http.ResponseWriter, r *http.Request) {
-	log.Printf("build name => %s\n", c.URLParams["name"])
-	log.Printf("build version => %s\n", c.URLParams["version"])
+	log.Printf("rm name => %s\n", c.URLParams["name"])
+	log.Printf("rm version => %s\n", c.URLParams["version"])
 
 	name := c.URLParams["name"]
 	version := c.URLParams["version"]
 
 	if err := gSubakoCtx.RemovePackage(name, version); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/packages", http.StatusSeeOther)
+}
+
+func removePackageDep(c web.C, w http.ResponseWriter, r *http.Request) {
+	log.Printf("rm name => %s\n", c.URLParams["name"])
+	log.Printf("rm version => %s\n", c.URLParams["version"])
+	log.Printf("rm dep name => %s\n", c.URLParams["dep_name"])
+	log.Printf("rm dep version => %s\n", c.URLParams["dep_version"])
+
+	name := c.URLParams["name"]
+	version := c.URLParams["version"]
+	depName := c.URLParams["dep_name"]
+	depVersion := c.URLParams["dep_version"]
+
+	if err := gSubakoCtx.RemovePackageDep(name, version, depName, depVersion); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -717,6 +802,7 @@ func dailyTasksDelete(c web.C, w http.ResponseWriter, r *http.Request) {
 
 func updateProcConfigSets(c web.C, w http.ResponseWriter, r *http.Request) {
 	if err := gSubakoCtx.RefreshProfileConfigs(); err != nil {
+		log.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -759,6 +845,20 @@ func showInfo(c web.C, w http.ResponseWriter, r *http.Request) {
 	tpl.ExecuteWriter(pongo2.Context{}, w)
 }
 
+
+func showProfiles(c web.C, w http.ResponseWriter, r *http.Request) {
+	tpl, err := pongo2.DefaultSet.FromFile("profiles.html")
+	if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+	profiles := gSubakoCtx.Profiles.Profiles
+
+	tpl.ExecuteWriter(pongo2.Context{
+		"profiles": profiles,
+	}, w)
+}
 
 func showProfilesAPI(c web.C, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

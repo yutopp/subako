@@ -115,7 +115,7 @@ func (template *ProfileTemplate) Generate(
 	profile *Profile,
 	ap *AvailablePackage,
 ) (err error) {
-	log.Printf("GENERATE by %s %s\n", ap.PackageName, ap.Version)
+	log.Printf("GENERATE by %s %s\n", ap.GeneratedPackageName, ap.Version)
 
 	profile.DisplayVersion, err = ap.ReplaceString(template.DisplayVersion)
 	if err != nil { return err }
@@ -135,12 +135,12 @@ func (template *ProfileTemplate) Generate(
 
 // ==
 type ProfilePatchFrom struct {
-	Versions			[]string
+	Versions			[]LanguageVersion
 }
 
 type ProfilePatchTo struct {
-	Name				string
-	Versions			[]string
+	Name				LanguageName
+	Versions			[]LanguageVersion
 }
 
 type ProfilePatch struct {
@@ -158,7 +158,7 @@ func (patch *ProfilePatch) Generate(
 	profile *Profile,
 	ap *AvailablePackage,
 ) (err error) {
-	log.Printf("GENERATE by %s %s\n", ap.PackageName, ap.Version)
+	log.Printf("PATCH    by %s %s\n", ap.GeneratedPackageName, ap.Version)
 
 	profile.Compile, err = appendExecProfile(ap, profile.Compile, patch.Append.Compile)
 	if err != nil { return err }
@@ -234,6 +234,62 @@ func appendExecProfile(
 
 
 // ==
+type transF func(string) (string, error)
+
+func transformStringArray(gen []string, f transF) ([]string, error) {
+	result := make([]string, len(gen))
+	var err error
+
+	for i, v := range gen {
+		result[i], err = f(v)
+		if err != nil { return nil, err }
+	}
+
+	return result, nil
+}
+
+func transformStringNestedArray(gen [][]string, f transF) ([][]string, error) {
+	result := make([][]string, len(gen))
+	var err error
+
+	for i, v := range gen {
+		result[i], err = transformStringArray(v, f)
+		if err != nil { return nil, err }
+	}
+
+	return result, nil
+}
+
+func transformStringMap(gen map[string]string, f transF) (map[string]string, error) {
+	result := make(map[string]string)
+
+	for rk, v := range gen {
+		k, err := f(rk)
+		if err != nil { return nil, err }
+
+		result[k], err = f(v)
+		if err != nil { return nil, err }
+	}
+
+	return result, nil
+}
+
+func transformStringArrayMap(gen map[string][]string, f transF) (map[string][]string, error) {
+	result := make(map[string][]string)
+
+	for rk, v := range gen {
+		k, err := f(rk)
+		if err != nil { return nil, err }
+
+		result[k], err = transformStringArray(v, f)
+		if err != nil { return nil, err }
+	}
+
+	return result, nil
+}
+
+
+// ==
 func appendStringMap(recv, inj map[string]string) map[string]string {
 	if inj == nil { return nil }
 	result := make(map[string]string)
@@ -270,55 +326,4 @@ func appendStringArrayMap(recv, inj map[string][]string) map[string][]string {
 	}
 
 	return result
-}
-
-
-type transF func(string) (string, error)
-
-func transformStringArray(gen []string, f transF) ([]string, error) {
-	result := make([]string, len(gen))
-	var err error
-
-	for i, v := range gen {
-		result[i], err = f(v)
-		if err != nil { return nil, err }
-	}
-
-	return result, nil
-}
-
-func transformStringNestedArray(gen [][]string, f transF) ([][]string, error) {
-	result := make([][]string, len(gen))
-	var err error
-
-	for i, v := range gen {
-		result[i], err = transformStringArray(v, f)
-		if err != nil { return nil, err }
-	}
-
-	return result, nil
-}
-
-func transformStringMap(gen map[string]string, f transF) (map[string]string, error) {
-	result := make(map[string]string)
-	var err error
-
-	for k, v := range gen {
-		result[k], err = f(v)
-		if err != nil { return nil, err }
-	}
-
-	return result, nil
-}
-
-func transformStringArrayMap(gen map[string][]string, f transF) (map[string][]string, error) {
-	result := make(map[string][]string)
-	var err error
-
-	for k, v := range gen {
-		result[k], err = transformStringArray(v, f)
-		if err != nil { return nil, err }
-	}
-
-	return result, nil
 }

@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+{% for profile in profiles %}
+<div class="row">
+    <div class="col-xs-12">
+
+        {{ profile.Name }}<br>
+
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}

@@ -9,6 +9,7 @@ import (
 	"log"
 	"errors"
 	"fmt"
+	"time"
 	"encoding/json"
 
 	"github.com/fsouza/go-dockerclient"
@@ -80,6 +81,7 @@ type BuildResult struct {
 
 	hostInstallBase		string
 	hostInstallPrefix	string
+	duration			time.Duration
 }
 
 type IntermediateContainerInfo struct {
@@ -88,7 +90,7 @@ type IntermediateContainerInfo struct {
 }
 
 func (ctx *BuilderContext) build(
-	procConfig			*ProcConfig,
+	procConfig			IPackageBuildConfig,
 	procConfigSetsDir	string,
 	writePipe			io.Writer,
 	intermediateCh		chan<-IntermediateContainerInfo,
@@ -122,12 +124,11 @@ func (ctx *BuilderContext) build(
 			Env: []string{
 				"PATH=/bin:/usr/bin:/usr/local/bin/",
 				"TR_REUSE_FLAG=0",
-				"TR_NAME=" + procConfig.name,
-				"TR_VERSION=" + procConfig.version,
+				"TR_VERSION=" + string(procConfig.GetVersion()),
 				"TR_INSTALL_PREFIX=" + inContainerInstalledPath,
-				"TR_PACKAGE_NAME=" + procConfig.name,
-				"TR_TARGET_SYSTEM=" + procConfig.targetSystem,
-				"TR_TARGET_ARCH=" + procConfig.targetArch,
+				"TR_PACKAGE_NAME=" + string(procConfig.GetGenPkgName()),
+				"TR_TARGET_SYSTEM=" + procConfig.GetTargetSystem(),
+				"TR_TARGET_ARCH=" + procConfig.GetTargetArch(),
 				"TR_INSTALL_PATH=" + ctx.installBasePrefix,
 				"TR_PKGS_PATH=" + inContainerBuiltPkgsDir,
 				"TR_CPU_CORE=2",	// TODO: fix
@@ -135,6 +136,15 @@ func (ctx *BuilderContext) build(
 			},
 			Cmd: []string{"bash", inContainerInstallScriptPath},
 		},
+	}
+	if procConfig.GetDepPackage() != nil {
+		ap := procConfig.GetDepPackage()
+		containerOpt.Config.Env = append(containerOpt.Config.Env, []string{
+			"TR_DEP_PKG_GEN_NAME=" + ap.GeneratedPackageName,
+			"TR_DEP_PKG_GEN_VERSION=" + ap.GeneratedPackageVersion,
+			"TR_DEP_PKG_DISP_VERSION=" + ap.DisplayVersion,
+			"TR_DEP_PKG_PATH=" + ap.InstallPrefix,
+		}...)
 	}
 
 	container, err := ctx.client.CreateContainer(containerOpt)
@@ -173,12 +183,13 @@ func (ctx *BuilderContext) build(
 	}(ctx, attachOpt)
 
 	log.Printf("Start Container\n")
+	startT := time.Now()
 	hostConfig := &docker.HostConfig{
 		Binds: []string {
-			procConfigSetsDir + ":" + inContainerPkgConfigsDir + ":ro",		// readonly
-			procConfig.basePath + ":" + inContainerCurPkgConfigsDir + ":ro",// readonly
+			procConfigSetsDir + ":" + inContainerPkgConfigsDir + ":ro",				// readonly
+			procConfig.GetBasePath() + ":" + inContainerCurPkgConfigsDir + ":ro",	// readonly
 			workDir + ":" + inContainerWorkDir,
-			ctx.virtualUsrDir + ":" + ctx.installBasePrefix,				// user can use compilers from ctx.installBasePrefix
+			ctx.virtualUsrDir + ":" + ctx.installBasePrefix,						// user can use compilers from ctx.installBasePrefix
 			ctx.packagesDir + ":" + inContainerBuiltPkgsDir,
 		},
 	}
@@ -193,13 +204,13 @@ func (ctx *BuilderContext) build(
 		return nil, err
 	}
 	fmt.Fprintf(writePipe, "Exit Status => %d\n", status_code)
-
+	endT := time.Now()
 	if status_code != 0 {
 		return nil, errors.New("Container status code is not 0")
 	}
 
 	//
-	resultJsonName := fmt.Sprintf("result-%s-%s.json", procConfig.name, procConfig.version)
+	resultJsonName := fmt.Sprintf("result-%s-%s.json", procConfig.GetGenPkgName(), procConfig.GetVersion())
 	file, err := ioutil.ReadFile(filepath.Join(ctx.packagesDir, resultJsonName))
     if err != nil {
         log.Printf("JSON read error: %v\n", err)
@@ -213,6 +224,7 @@ func (ctx *BuilderContext) build(
 	}
 	br.hostInstallBase = ctx.installBasePrefix			//
 	br.hostInstallPrefix = inContainerInstalledPath		//
+	br.duration = endT.Sub(startT)
 
 	log.Println("BUILD RESULT", br)
 

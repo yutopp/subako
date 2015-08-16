@@ -12,14 +12,31 @@
 </div>
 
 <div class="row">
-    <div class="col-xs-3">
+    <div class="col-xs-4">
         <h1>Proc</h1>
         <ul>
-        {% for config_set in config_sets_ctx.SortedConfigSets() %}
-            <li>{{ config_set.Name }}</li>
+        {% for package_build_config_set in config_sets_ctx.SortedConfigSets() %}
+            <li>
+                {{ package_build_config_set.Name }}
+                [{% for k, _ in package_build_config_set.LangConfigs %}{{k}} {% endfor %}]
+            </li>
             <ul>
-                {% for c in config_set.SortedConfigs() %}
+                {% for c in package_build_config_set.SortedConfigs() %}
+
+                {% if package_build_config_set.DepPkgNames|length == 0 %}
+
                 <li>{{ c.version }} <strong><a href="/queue/{{ c.name | urlencode}}/{{ c.version | urlencode}}">to_queue</a></strong>[<a href="/build/{{ c.name | urlencode}}/{{ c.version | urlencode}}">exec</a>]</li>
+
+                {% else %}
+
+                {% for dn in package_build_config_set.DepPkgNames %}
+                {% for dv in package_build_config_set.DepPkgVersions %}
+                <li>{{ c.version }} <strong><a href="/queue/{{ c.name | urlencode }}/{{ c.version | urlencode }}/{{ dn | urlencode }}/{{ dv | urlencode }}">to_queue</a></strong>[<a href="/build/{{ c.name | urlencode}}/{{ c.version | urlencode}}/{{ dn | urlencode }}/{{ dv | urlencode }}">exec</a>]</li> by {{ dn }}-{{ dv }}
+                {% endfor %}
+                {% endfor %}
+
+                {% endif %}
+
                 {% endfor %}
             </ul>
         {% endfor %}
@@ -31,13 +48,13 @@
         <ul>
             {% for q in queued_tasks %}
 
-            <li>Waiting: {{ q.proc.name }} {{ q.proc.version }}</li>
+            <li>Waiting: {{ q.Proc.GetName() }} {{ q.Proc.GetVersion() }}</li>
 
             {% endfor %}
         </ul>
     </div>
 
-    <div class="col-xs-6">
+    <div class="col-xs-5">
         <h1>Tasks</h1>
         <ul>
             {% for task in tasks %}

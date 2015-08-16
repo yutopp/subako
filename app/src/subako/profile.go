@@ -1,10 +1,10 @@
 package subako
 
 import (
-	"errors"
 	"log"
 	"sync"
 	"fmt"
+	"reflect"
 )
 
 
@@ -61,10 +61,10 @@ func (h *GenericTemplate) Update(p *Profile) error {
 	return h.Template.Generate(p, &h.Ref)
 }
 
-type propVerMap map[string][]GenericTemplate	// map[version]IProfileTemplate
-type propMap map[string]propVerMap				// map[name]
+type propVerMap map[LanguageVersion][]GenericTemplate
+type propMap map[LanguageName]propVerMap
 
-func (p propMap) has(name, version string) bool {
+func (p propMap) has(name LanguageName, version LanguageVersion) bool {
 	if _, ok := p[name]; !ok {
 		return false
 	}
@@ -99,81 +99,136 @@ func (ph *ProfilesHolder) Save() error {
 }
 
 func (ph *ProfilesHolder) GenerateProcProfiles(
-	ap	*AvailablePackages,
-	pc	ProcConfigMap,
+	aps		*AvailablePackages,
+	pc		ProcConfigMap,
 ) error {
 	targetProfileTemplates := make(propMap)
 
 	// collect normal profile from available packages
-	for name, apPkgs := range ap.Packages {
-		procConfig, ok := pc[name]
+	if err := aps.Walk(func(
+		pkgName		PackageName,
+		pkgVersion	PackageVersion,
+		depName		PackageName,
+		depVersion	PackageVersion,
+		ap			*AvailablePackage,
+	) error {
+		pkgBuildConfigSet, ok := pc[pkgName]
 		if !ok {
-			return fmt.Errorf("")		// TODO: fix
+			return fmt.Errorf("there are no langname(%s)", pkgName)
 		}
-		targetProfileTemplates[name] = make(propVerMap)
 
-		for version, apPkg := range apPkgs {
-			log.Printf("Template %s %s\n", name, version)
-			targetProfileTemplates[name][version] = []GenericTemplate{
+		for langName, langConfigSet := range pkgBuildConfigSet.LangConfigs {
+			if _, ok := targetProfileTemplates[langName]; !ok {
+				targetProfileTemplates[langName] = make(propVerMap)
+			}
+
+			langVersion := LanguageVersion(pkgVersion)
+			if _, ok := langConfigSet.Versions[langVersion]; !ok {
+				continue
+			}
+
+			log.Printf("Template: package(%s, %s) lang(%s, %s)", pkgName, pkgVersion, langName, langVersion)
+
+			if targetProfileTemplates.has(langName, langVersion) {
+				return fmt.Errorf("lang(%s, %s) is already registered", langName, langVersion)
+			}
+
+			if langConfigSet.ProfileTemplate == nil {
+				log.Printf("NOTE: Template: package(%s, %s) lang(%s, %s) is nil", pkgName, pkgVersion, langName, langVersion)
+			}
+
+			// append
+			targetProfileTemplates[langName][langVersion] = []GenericTemplate{
 				GenericTemplate{
-					Template: procConfig.ProfileTemplate,
-					Ref: apPkg,
+					Template: langConfigSet.ProfileTemplate,
+					Ref: *ap,
 				},
 			}
 		}
+
+		return nil
+
+	}); err != nil {
+		return err
 	}
 
+
 	// patches
-	for name, _ := range ap.Packages {
-		procConfig, ok := pc[name]
+	// collect normal profile from available packages
+	if err := aps.Walk(func(
+		pkgName		PackageName,
+		pkgVersion	PackageVersion,
+		depName		PackageName,
+		depVersion	PackageVersion,
+		ap			*AvailablePackage,
+	) error {
+		pkgBuildConfigSet, ok := pc[pkgName]
 		if !ok {
-			return errors.New("")		// TODO: fix
+			return fmt.Errorf("there are no langname(%s)", pkgName)
 		}
-		for _, patch := range procConfig.ProfilePatches {
-			from := patch.From
-			to := patch.To
 
-			for _, fromVersion := range from.Versions {
-				// if this package has this version, do action
-				if !targetProfileTemplates.has(name, fromVersion) {
-					continue
-				}
+		for langName, langConfigSet := range pkgBuildConfigSet.LangConfigs {
+			for _, patch := range langConfigSet.ProfilePatches {
+				from := patch.From		// of langName / pkgName
+				to := patch.To
 
-				log.Printf("FROM %v\n", fromVersion)
-
-				//
-				for _, toVersion := range to.Versions {
-					if !targetProfileTemplates.has(to.Name, toVersion) {
-						// there are no targets, ignore
+				for _, fromVersion := range from.Versions {
+					// if this package has this version, do action
+					if !targetProfileTemplates.has(langName, fromVersion) {
+						log.Printf("No Patch FROM %s / %s\n", string(pkgName), fromVersion)
 						continue
 					}
 
-					targetProfileTemplates[to.Name][toVersion] = append(
-						targetProfileTemplates[to.Name][toVersion],
-						GenericTemplate{
-							Template: patch,
-							Ref: ap.Packages[name][fromVersion],
-						},
-					)
-					log.Printf("TO %v\n", toVersion)
+					for _, toVersion := range to.Versions {
+						if !targetProfileTemplates.has(to.Name, toVersion) {
+							// there are no targets, ignore
+							log.Printf("No Patch TO %s / %s\n", to.Name, toVersion)
+							continue
+						}
+
+						log.Printf("Template Patch FROM (%s, %s) TO (%s, %s)", langName, fromVersion, to.Name, toVersion)
+
+						targetProfileTemplates[to.Name][toVersion] = append(
+							targetProfileTemplates[to.Name][toVersion],
+							GenericTemplate{
+								Template: patch,
+								Ref: *ap,
+							},
+						)
+					}
 				}
 			}
-
-			log.Printf("Template Patch %v\n", patch)
 		}
+
+		return nil
+
+	}); err != nil {
+		return err
 	}
 
+
 	// GENERATE
-	profiles := make([]Profile, 0)
+	profiles := make([]Profile, 0, 20)
 	for name, vers := range targetProfileTemplates {
 		for version, gens := range vers {
 			prof := Profile{
-				Name: name,
-				Version: version,
+				Name: string(name),
+				Version: string(version),
 			}
 
-			log.Printf("Generate %s %s\n", name, version)
+			log.Printf("Generate (%s, %s) / num = %d", name, version, len(gens))
+			if len(gens) == 1 {
+				if reflect.ValueOf(gens[0].Template).IsNil() {
+					log.Printf("SKIPPED")
+					continue
+				}
+			}
+
 			for _, gen := range gens {
+				if reflect.ValueOf(gen.Template).IsNil() {
+					continue
+				}
+
 				if err := gen.Update(&prof); err != nil {
 					log.Printf("Error: %v", err)
 					return err
