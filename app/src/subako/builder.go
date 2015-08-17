@@ -141,6 +141,8 @@ func (ctx *BuilderContext) build(
 	if procConfig.GetDepPackage() != nil {
 		ap := procConfig.GetDepPackage()
 		containerOpt.Config.Env = append(containerOpt.Config.Env, []string{
+			"TR_DEP_PKG_NAME=" + string(ap.Name),
+			"TR_DEP_PKG_VERSION=" + string(ap.Version),
 			"TR_DEP_PKG_GEN_NAME=" + ap.GeneratedPackageName,
 			"TR_DEP_PKG_GEN_VERSION=" + ap.GeneratedPackageVersion,
 			"TR_DEP_PKG_DISP_VERSION=" + ap.DisplayVersion,
