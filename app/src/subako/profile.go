@@ -123,18 +123,18 @@ func (ph *ProfilesHolder) GenerateProcProfiles(
 			}
 
 			langVersion := LanguageVersion(pkgVersion)
-			if _, ok := langConfigSet.Versions[langVersion]; !ok {
+			if _, ok := langConfigSet.Configs[langVersion]; !ok {
 				continue
 			}
 
 			log.Printf("Template: package(%s, %s) lang(%s, %s)", pkgName, pkgVersion, langName, langVersion)
-
-			if targetProfileTemplates.has(langName, langVersion) {
-				return fmt.Errorf("lang(%s, %s) is already registered", langName, langVersion)
-			}
-
 			if langConfigSet.ProfileTemplate == nil {
 				log.Printf("NOTE: Template: package(%s, %s) lang(%s, %s) is nil", pkgName, pkgVersion, langName, langVersion)
+				continue
+			}
+
+			if targetProfileTemplates.has(langName, langVersion) {
+				return fmt.Errorf("Profile: lang(%s, %s) is already registered", langName, langVersion)
 			}
 
 			// append
@@ -187,6 +187,9 @@ func (ph *ProfilesHolder) GenerateProcProfiles(
 						}
 
 						log.Printf("Template Patch FROM (%s, %s) TO (%s, %s)", langName, fromVersion, to.Name, toVersion)
+						if targetProfileTemplates[to.Name][toVersion] == nil {
+							targetProfileTemplates[to.Name][toVersion] = []GenericTemplate{}
+						}
 
 						targetProfileTemplates[to.Name][toVersion] = append(
 							targetProfileTemplates[to.Name][toVersion],

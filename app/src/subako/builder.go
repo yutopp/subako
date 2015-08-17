@@ -137,6 +137,7 @@ func (ctx *BuilderContext) build(
 			Cmd: []string{"bash", inContainerInstallScriptPath},
 		},
 	}
+	log.Printf("Build (%s, %s) <- %v", procConfig.GetName(), procConfig.GetDepVersion(), procConfig.GetDepPackage())
 	if procConfig.GetDepPackage() != nil {
 		ap := procConfig.GetDepPackage()
 		containerOpt.Config.Env = append(containerOpt.Config.Env, []string{

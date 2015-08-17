@@ -29,6 +29,8 @@ type IPackageBuildConfig interface {
 	GetDepVersion() PackageVersion
 	GetGenPkgName() string
 	GetDepPackage() *AvailablePackage
+
+	GetRepDeps() []PackageName
 }
 
 // Unit
@@ -40,6 +42,8 @@ type PackageBuildConfig struct {
 	targetSystem		string		// Ex. x86_64-linux-gnu
 	targetArch			string		// Ex. x86_64
 	basePath			string
+
+	refDeps				[]PackageName
 }
 
 func (tc *PackageBuildConfig) makeWorkDirName() string {
@@ -59,6 +63,9 @@ func (tc *PackageBuildConfig) GetDepName() PackageName { return PackageName("") 
 func (tc *PackageBuildConfig) GetDepVersion() PackageVersion { return PackageVersion("") }
 func (tc *PackageBuildConfig) GetGenPkgName() string { return tc.name }
 func (tc *PackageBuildConfig) GetDepPackage() *AvailablePackage { return nil }
+
+func (tc *PackageBuildConfig) GetRepDeps() []PackageName { return tc.refDeps }
+
 
 //
 type PackageBuildConfigWithDep struct {
@@ -83,7 +90,7 @@ func (tc *PackageBuildConfigWithDep) GetDepVersion() PackageVersion {
 func (tc *PackageBuildConfigWithDep) GetGenPkgName() string {
 	return fmt.Sprintf("%s--with-%s.%s-", tc.name, tc.DepAP.Name, tc.DepAP.Version)
 }
-func (tc *PackageBuildConfigWithDep) getDepPackage() *AvailablePackage { return tc.DepAP }
+func (tc *PackageBuildConfigWithDep) GetDepPackage() *AvailablePackage { return tc.DepAP }
 
 
 // Set
@@ -91,6 +98,7 @@ type PackageBuildConfigSet struct {
 	Name				PackageName			`json:"name"`
 	Versions			[]PackageVersion	`json:"versions"`
 	Type				string				`json:"type"`
+	QueueWith			[]PackageName		`json:"queue_with"`
 
 	DepPkgNames			[]PackageName		`json:"dep_pkgs"`
 	DepPkgVersions		[]PackageVersion	`json:"dep_pkg_versions"`
@@ -114,6 +122,23 @@ func (pc *PackageBuildConfigSet) SortedConfigs() []*PackageBuildConfig {
 
 	return confs
 }
+
+
+func (pc *PackageBuildConfigSet) SortedLangConfigs() []*LangConfigSet {
+	var keys []string
+    for k := range pc.LangConfigs {
+        keys = append(keys, string(k))
+    }
+    sort.Sort(sort.Reverse(sort.StringSlice(keys)))
+
+	var confs []*LangConfigSet
+	for _, name := range keys {
+		confs = append(confs, pc.LangConfigs[LanguageName(name)])
+	}
+
+	return confs
+}
+
 
 
 func makeProcConfigSet(baseDir targetPath) (*PackageBuildConfigSet, error) {
@@ -153,6 +178,8 @@ func makeProcConfigSet(baseDir targetPath) (*PackageBuildConfigSet, error) {
 			targetSystem: "x86_64-linux-gnu",	// tmp
 			targetArch: "x86_64",				// tmp
 			basePath: string(baseDir),
+
+			refDeps: configSet.QueueWith,
 		}
 
 		configSet.Configs[version] = config

@@ -288,6 +288,32 @@ func (ctx *SubakoContext) Build(
 
 	ctx.Logger.Succeeded(fmt.Sprintf("Build: %s / %s [%v]", taskConfig.GetName(), taskConfig.GetVersion(), result.duration))
 
+	// queue dependency
+	refs := taskConfig.GetRepDeps()
+	if refs != nil {
+		for _, refName := range refs {
+			if buildConfigSet, ok := ctx.ProcConfigSetsCtx.Map[refName]; ok {
+				for refVersion, _ := range buildConfigSet.Configs {
+					procConfig, err := ctx.ProcConfigSetsCtx.FindWithDep(
+						string(refName),
+						string(refVersion),
+						string(taskConfig.GetName()),
+						string(taskConfig.GetVersion()),
+						ctx.AvailablePackages,
+					)
+					if err != nil {
+						log.Printf("DEP: skip (%s, %s) with (%s, %s) / %s", refName, refVersion, taskConfig.GetName(), taskConfig.GetVersion(), err.Error())
+						continue
+					}
+
+					log.Printf("DEP: trigger -> (%s, %s) with (%s, %s)", refName, refVersion, taskConfig.GetName(), taskConfig.GetVersion())
+
+					ctx.Queue(procConfig)
+				}
+			}
+		}
+	}
+
 	return task
 }
 

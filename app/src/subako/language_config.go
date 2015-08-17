@@ -29,17 +29,12 @@ type LangConfig struct {
 
 
 // Set
-type LangConfigSetJSON struct {
-	Name		string		`json:"name"`
-	Versions	[]string	`json:"versions"`
-	Type		string		`json:"type"`
-}
-
 type LangConfigSet struct {
-	Name				LanguageName
-	Type				string
+	Name				LanguageName			`json:"name"`
+	Versions			[]LanguageVersion		`json:"versions"`
+	Type				string					`json:"type"`
 
-	Versions			map[LanguageVersion]*LangConfig
+	Configs				map[LanguageVersion]*LangConfig
 	ProfileTemplate		*ProfileTemplate
 	ProfilePatches		[]*ProfilePatch
 }
@@ -55,34 +50,30 @@ func makeLangConfigSet(baseDir targetPath) (*LangConfigSet, error) {
         return nil, err
     }
 
-	var c LangConfigSetJSON
-	if err := json.Unmarshal(file, &c); err != nil {
+	configSet := &LangConfigSet{
+		Configs: make(map[LanguageVersion]*LangConfig),
+	}
+	if err := json.Unmarshal(file, configSet); err != nil {
 		return nil, err
 	}
 
-	if len(c.Name) == 0 {
+	if len(configSet.Name) == 0 {
 		panic("name")	// TODO: fix
 	}
 
-	if c.Versions == nil || len(c.Versions) == 0 {
+	if configSet.Versions == nil || len(configSet.Versions) == 0 {
 		panic("versions")	// TODO: fix
 	}
 
-	// return value
-	configSet := &LangConfigSet{
-		Name: LanguageName(c.Name),
-		Type: c.Type,
-		Versions: make(map[LanguageVersion]*LangConfig),
-	}
 
 	// read config
-	for _, version := range c.Versions {
+	for _, version := range configSet.Versions {
 		config := &LangConfig{
-			name: LanguageName(c.Name),
-			version: LanguageVersion(version),
+			name: configSet.Name,
+			version: version,
 		}
 
-		configSet.Versions[LanguageVersion(version)] = config
+		configSet.Configs[version] = config
 	}
 
 
@@ -129,7 +120,7 @@ func makeLangConfigSet(baseDir targetPath) (*LangConfigSet, error) {
 		return nil, err
 	}
 
-	log.Printf("Results: %v\n", c)
+	log.Printf("Results: %v\n", *configSet)
 
 	// update
 	configSet.ProfileTemplate = profileTemplate

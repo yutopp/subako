@@ -18,7 +18,7 @@
         {% for package_build_config_set in config_sets_ctx.SortedConfigSets() %}
             <li>
                 {{ package_build_config_set.Name }}
-                [{% for k, _ in package_build_config_set.LangConfigs %}{{k}} {% endfor %}]
+                [{% for c in package_build_config_set.SortedLangConfigs() %}{{ c.Name }}, {% endfor %}]
             </li>
             <ul>
                 {% for c in package_build_config_set.SortedConfigs() %}
@@ -31,7 +31,7 @@
 
                 {% for dn in package_build_config_set.DepPkgNames %}
                 {% for dv in package_build_config_set.DepPkgVersions %}
-                <li>{{ c.version }} <strong><a href="/queue/{{ c.name | urlencode }}/{{ c.version | urlencode }}/{{ dn | urlencode }}/{{ dv | urlencode }}">to_queue</a></strong>[<a href="/build/{{ c.name | urlencode}}/{{ c.version | urlencode}}/{{ dn | urlencode }}/{{ dv | urlencode }}">exec</a>]</li> by {{ dn }}-{{ dv }}
+                <li>{{ c.version }} <strong><a href="/queue/{{ c.name | urlencode }}/{{ c.version | urlencode }}/{{ dn | urlencode }}/{{ dv | urlencode }}">to_queue</a></strong>[<a href="/build/{{ c.name | urlencode}}/{{ c.version | urlencode}}/{{ dn | urlencode }}/{{ dv | urlencode }}">exec</a>] <- {{ dn }}-{{ dv }}</li>
                 {% endfor %}
                 {% endfor %}
 
