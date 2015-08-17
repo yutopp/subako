@@ -230,7 +230,6 @@ func main() {
 
 	goji.Get("/information", showInfo)
 
-	goji.Get("/profiles", showProfiles)
 	goji.Get("/api/profiles", showProfilesAPI)
 	goji.Handle("/*", reqAuthMux)
 
@@ -845,20 +844,6 @@ func showInfo(c web.C, w http.ResponseWriter, r *http.Request) {
 	tpl.ExecuteWriter(pongo2.Context{}, w)
 }
 
-
-func showProfiles(c web.C, w http.ResponseWriter, r *http.Request) {
-	tpl, err := pongo2.DefaultSet.FromFile("profiles.html")
-	if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-	profiles := gSubakoCtx.Profiles.Profiles
-
-	tpl.ExecuteWriter(pongo2.Context{
-		"profiles": profiles,
-	}, w)
-}
 
 func showProfilesAPI(c web.C, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
