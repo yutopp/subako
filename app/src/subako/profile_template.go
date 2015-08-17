@@ -164,10 +164,10 @@ func (patch *ProfilePatch) Generate(
 	if err != nil { return err }
 
 	profile.Link, err = appendExecProfile(ap, profile.Link, patch.Append.Link)
-	if err != nil { return }
+	if err != nil { return err }
 
 	profile.Exec, err = appendExecProfile(ap, profile.Exec, patch.Append.Exec)
-	if err != nil { return }
+	if err != nil { return err }
 
 	return
 }
@@ -208,28 +208,28 @@ func appendExecProfile(
 	base *ExecProfile,
 	src *ExecProfileTemplate,
 ) (prof *ExecProfile, err error) {
-	if src == nil { return }
+	if src == nil { return base, nil }
 
 	var execProfile ExecProfile = *base
 	prof = &execProfile
 
 	commands, err := transformStringArray(src.Commands, ap.ReplaceString)
-	if err != nil { return }
+	if err != nil { return nil, err }
 	prof.Commands = append(base.Commands, commands...)
 
 	envs, err := transformStringMap(src.Envs, ap.ReplaceString)
-	if err != nil { return }
+	if err != nil { return nil, err }
 	prof.Envs = appendStringMap(base.Envs, envs)
 
 	fixedCommands, err := transformStringNestedArray(src.FixedCommands, ap.ReplaceString)
-	if err != nil { return }
+	if err != nil { return nil, err }
 	prof.FixedCommands = append(base.FixedCommands, fixedCommands...)
 
 	options, err := transformStringArrayMap(src.SelectableOptions, ap.ReplaceString)
-	if err != nil { return }
+	if err != nil { return nil, err }
 	prof.SelectableOptions = appendStringArrayMap(base.SelectableOptions, options)
 
-	return
+	return prof, nil
 }
 
 

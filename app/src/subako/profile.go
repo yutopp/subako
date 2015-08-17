@@ -35,10 +35,12 @@ func (p *Profile) Log() {
 		log.Println(" Link")
 		p.Link.Log()
 	}
-	if p.Exec != nil {
-		log.Println(" Exec")
-		p.Exec.Log()
+	if p.Exec == nil {
+		log.Println(" Exec: ERROR!! <nil>")
 	}
+
+	log.Println(" Exec")
+	p.Exec.Log()
 }
 
 func (e *ExecProfile) Log() {
