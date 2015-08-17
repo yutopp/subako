@@ -78,7 +78,7 @@ func (tc *PackageBuildConfigWithDep) makeWorkDirName() string {
 }
 
 func (tc *PackageBuildConfigWithDep) makePackagePathName() string {
-	return fmt.Sprintf("%s.%s<with.%s.%s>", tc.name, tc.version, tc.DepAP.Name, tc.DepAP.Version)
+	return fmt.Sprintf("%s.%s.with.%s.%s", tc.name, tc.version, tc.DepAP.Name, tc.DepAP.Version)
 }
 
 func (tc *PackageBuildConfigWithDep) GetDepName() PackageName {
@@ -97,7 +97,6 @@ func (tc *PackageBuildConfigWithDep) GetDepPackage() *AvailablePackage { return 
 type PackageBuildConfigSet struct {
 	Name				PackageName			`json:"name"`
 	Versions			[]PackageVersion	`json:"versions"`
-	Type				string				`json:"type"`
 	QueueWith			[]PackageName		`json:"queue_with"`
 
 	DepPkgs				map[PackageName][]PackageVersion	`json:"dep_pkgs"`
