@@ -23,17 +23,14 @@
             <ul>
                 {% for c in package_build_config_set.SortedConfigs() %}
 
-                {% if package_build_config_set.DepPkgNames|length == 0 %}
+                {% if package_build_config_set.DepPkgs %}
 
-                <li>{{ c.version }} <strong><a href="/queue/{{ c.name | urlencode}}/{{ c.version | urlencode}}">to_queue</a></strong>[<a href="/build/{{ c.name | urlencode}}/{{ c.version | urlencode}}">exec</a>]</li>
+                {% for sd in package_build_config_set.SortedDepPkgs() %}
+                <li>{{ c.version }} <strong><a href="/queue/{{ c.name | urlencode }}/{{ c.version | urlencode }}/{{ sd.Name | urlencode }}/{{ sd.Version | urlencode }}">to_queue</a></strong>[<a href="/build/{{ c.name | urlencode}}/{{ c.version | urlencode}}/{{ sd.Name | urlencode }}/{{ sd.Version | urlencode }}">exec</a>] <- {{ sd.Name }}-{{ sd.Version }}</li>
+                {% endfor %}
 
                 {% else %}
-
-                {% for dn in package_build_config_set.DepPkgNames %}
-                {% for dv in package_build_config_set.DepPkgVersions %}
-                <li>{{ c.version }} <strong><a href="/queue/{{ c.name | urlencode }}/{{ c.version | urlencode }}/{{ dn | urlencode }}/{{ dv | urlencode }}">to_queue</a></strong>[<a href="/build/{{ c.name | urlencode}}/{{ c.version | urlencode}}/{{ dn | urlencode }}/{{ dv | urlencode }}">exec</a>] <- {{ dn }}-{{ dv }}</li>
-                {% endfor %}
-                {% endfor %}
+                <li>{{ c.version }} <strong><a href="/queue/{{ c.name | urlencode}}/{{ c.version | urlencode}}">to_queue</a></strong>[<a href="/build/{{ c.name | urlencode}}/{{ c.version | urlencode}}">exec</a>]</li>
 
                 {% endif %}
 

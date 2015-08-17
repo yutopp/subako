@@ -306,6 +306,26 @@ func (ctx *SubakoContext) Build(
 						continue
 					}
 
+					//
+					pkgBuildCS := ctx.ProcConfigSetsCtx.Map[refName]
+					if pkgVers, ok := pkgBuildCS.DepPkgs[taskConfig.GetName()]; ok {
+						found := false
+						for _, ver := range pkgVers {
+							if ver == taskConfig.GetVersion() {
+								found = true
+							}
+						}
+						if !found {
+							log.Printf("DEP: skip (%s, %s) with (%s, %s) / No dep", refName, refVersion, taskConfig.GetName(), taskConfig.GetVersion())
+							continue
+						}
+
+					} else {
+						log.Printf("DEP: skip (%s, %s) with (%s, %s) / No dep", refName, refVersion, taskConfig.GetName(), taskConfig.GetVersion())
+						continue
+					}
+
+					//
 					log.Printf("DEP: trigger -> (%s, %s) with (%s, %s)", refName, refVersion, taskConfig.GetName(), taskConfig.GetVersion())
 
 					ctx.Queue(procConfig)

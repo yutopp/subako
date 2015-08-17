@@ -112,6 +112,8 @@ func (ph *ProfilesHolder) GenerateProcProfiles(
 		depVersion	PackageVersion,
 		ap			*AvailablePackage,
 	) error {
+		log.Printf("WALK: template : package(%s, %s) dep(%s, %s)", pkgName, pkgVersion, depName, depVersion)
+
 		pkgBuildConfigSet, ok := pc[pkgName]
 		if !ok {
 			return fmt.Errorf("there are no langname(%s)", pkgName)
@@ -130,11 +132,11 @@ func (ph *ProfilesHolder) GenerateProcProfiles(
 			log.Printf("Template: package(%s, %s) lang(%s, %s)", pkgName, pkgVersion, langName, langVersion)
 			if langConfigSet.ProfileTemplate == nil {
 				log.Printf("NOTE: Template: package(%s, %s) lang(%s, %s) is nil", pkgName, pkgVersion, langName, langVersion)
-				continue
+				//continue
 			}
 
 			if targetProfileTemplates.has(langName, langVersion) {
-				return fmt.Errorf("Profile: lang(%s, %s) is already registered", langName, langVersion)
+				log.Printf("Profile: lang(%s, %s) is already registered", langName, langVersion)
 			}
 
 			// append
@@ -162,6 +164,8 @@ func (ph *ProfilesHolder) GenerateProcProfiles(
 		depVersion	PackageVersion,
 		ap			*AvailablePackage,
 	) error {
+		log.Printf("WALK: patch    : package(%s, %s) dep(%s, %s)", pkgName, pkgVersion, depName, depVersion)
+
 		pkgBuildConfigSet, ok := pc[pkgName]
 		if !ok {
 			return fmt.Errorf("there are no langname(%s)", pkgName)
@@ -175,18 +179,29 @@ func (ph *ProfilesHolder) GenerateProcProfiles(
 				for _, fromVersion := range from.Versions {
 					// if this package has this version, do action
 					if !targetProfileTemplates.has(langName, fromVersion) {
-						log.Printf("No Patch FROM %s / %s\n", string(pkgName), fromVersion)
+						log.Printf("No Patch FROM %s / %s", langName, fromVersion)
+						continue
+					}
+					if LanguageVersion(pkgVersion) != fromVersion {
+						log.Printf("Skip Patch FROM (%s, %s) version diff(%s)", langName, fromVersion, pkgVersion)
 						continue
 					}
 
 					for _, toVersion := range to.Versions {
 						if !targetProfileTemplates.has(to.Name, toVersion) {
 							// there are no targets, ignore
-							log.Printf("No Patch TO %s / %s\n", to.Name, toVersion)
+							log.Printf("No Patch TO %s / %s", to.Name, toVersion)
 							continue
 						}
 
 						log.Printf("Template Patch FROM (%s, %s) TO (%s, %s)", langName, fromVersion, to.Name, toVersion)
+						if depVersion != "" {
+							if LanguageVersion(depVersion) != toVersion {
+								log.Printf("Skip Patch TO (%s, %s) version diff(%s)", to.Name, toVersion, depVersion)
+								continue
+							}
+						}
+
 						if targetProfileTemplates[to.Name][toVersion] == nil {
 							targetProfileTemplates[to.Name][toVersion] = []GenericTemplate{}
 						}

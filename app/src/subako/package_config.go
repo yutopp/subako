@@ -100,8 +100,7 @@ type PackageBuildConfigSet struct {
 	Type				string				`json:"type"`
 	QueueWith			[]PackageName		`json:"queue_with"`
 
-	DepPkgNames			[]PackageName		`json:"dep_pkgs"`
-	DepPkgVersions		[]PackageVersion	`json:"dep_pkg_versions"`
+	DepPkgs				map[PackageName][]PackageVersion	`json:"dep_pkgs"`
 
 	Configs				map[PackageVersion]*PackageBuildConfig
 
@@ -139,6 +138,31 @@ func (pc *PackageBuildConfigSet) SortedLangConfigs() []*LangConfigSet {
 	return confs
 }
 
+
+type SDepPkg struct{
+	Name	PackageName
+	Version	PackageVersion
+}
+func (pc *PackageBuildConfigSet) SortedDepPkgs() []SDepPkg {
+	var keys []string
+    for k := range pc.DepPkgs {
+        keys = append(keys, string(k))
+    }
+    sort.Sort(sort.Reverse(sort.StringSlice(keys)))
+
+	var confs []SDepPkg
+	for _, name := range keys {
+		vers := pc.DepPkgs[PackageName(name)]
+		for _, ver := range vers {
+			confs = append(confs, SDepPkg{
+				Name: PackageName(name),
+				Version: ver,
+			})
+		}
+	}
+
+	return confs
+}
 
 
 func makeProcConfigSet(baseDir targetPath) (*PackageBuildConfigSet, error) {
